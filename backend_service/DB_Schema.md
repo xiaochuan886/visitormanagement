@@ -91,20 +91,29 @@
 | updated_by | VARCHAR(100) | - | 更新人 |
 | is_deleted | BOOLEAN | DEFAULT FALSE | 是否删除 |
 
-### 4. 员工表 (employees)
+### 4. 员工表 (employees) ⭐ 已更新 (2025-06-07)
 
 | 字段名 | 数据类型 | 约束 | 描述 |
 |--------|----------|------|------|
 | id | INTEGER | PRIMARY KEY | 员工ID |
 | name | VARCHAR(100) | NOT NULL | 员工姓名 |
+| **employee_id** | **VARCHAR(50)** | **NOT NULL, UNIQUE** | **员工工号(唯一标识)** |
 | email | VARCHAR(100) | - | 邮箱地址 |
 | phone_number | VARCHAR(20) | - | 电话号码 |
 | gender | VARCHAR(10) | - | 性别 |
 | department_id | INTEGER | FK(departments.id) | 部门ID |
 | designation_id | INTEGER | FK(designations.id) | 职位ID |
+| **position** | **VARCHAR(100)** | **-** | **职位名称** |
+| **manager_id** | **INTEGER** | **FK(employees.id)** | **上级员工ID** |
 | about | TEXT | - | 个人简介 |
 | avatar | VARCHAR(200) | - | 头像URL |
-| employee_number | VARCHAR(50) | - | 工号 |
+| employee_number | VARCHAR(50) | - | 工号(旧字段,兼容性) |
+| **hire_date** | **TIMESTAMP** | **-** | **入职日期** |
+| **birth_date** | **TIMESTAMP** | **-** | **出生日期** |
+| **address** | **VARCHAR(200)** | **-** | **地址** |
+| **emergency_contact** | **VARCHAR(100)** | **-** | **紧急联系人** |
+| **emergency_phone** | **VARCHAR(20)** | **-** | **紧急联系电话** |
+| **salary** | **FLOAT** | **-** | **薪资** |
 | status | VARCHAR(20) | DEFAULT 'active' | 员工状态 |
 | related_account_id | VARCHAR(100) | - | 关联账户ID |
 | site_id | INTEGER | FK(sites.id) | 所属站点ID |
@@ -119,6 +128,23 @@
 - `idx_employees_tenant_dept` (tenant_id, department_id)
 - `idx_employees_email` (email)
 - `idx_employees_status` (status)
+- **`idx_employees_employee_id` (employee_id) - UNIQUE** ⭐ 新增
+- **`idx_employees_manager` (manager_id)** ⭐ 新增
+
+**外键约束**:
+- FOREIGN KEY (department_id) REFERENCES departments(id)
+- FOREIGN KEY (designation_id) REFERENCES designations(id)
+- FOREIGN KEY (site_id) REFERENCES sites(id)
+- **FOREIGN KEY (manager_id) REFERENCES employees(id)** ⭐ 新增
+
+**更新说明**:
+- 添加了 `employee_id` 字段作为员工的唯一工号标识
+- 添加了 `manager_id` 字段支持组织层级关系
+- 添加了 `position` 字段存储职位名称
+- 添加了员工个人信息字段：`hire_date`, `birth_date`, `address`
+- 添加了紧急联系人信息：`emergency_contact`, `emergency_phone`
+- 添加了 `salary` 字段存储薪资信息
+- 保留了原有的 `employee_number` 字段以确保向后兼容
 
 ### 5. 访客表 (visitors)
 

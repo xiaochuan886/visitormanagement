@@ -3,5 +3,10 @@ description:
 globs: 
 alwaysApply: true
 ---
-Whenever you want to ask a question, always call the MCP interactive_feedback.
-Whenever you’re about to complete a user request, call the MCP interactive_feedback instead of simply ending the process. Keep calling MCP until the user’s feedback is empty, then end the request.
+# MCP Interactive Feedback Rules
+
+1. During any process, task, or conversation, whether asking, responding, or completing stage tasks, must call MCP mcp-feedback-enhanced.
+2. When receiving user feedback, if feedback content is not empty, must call MCP mcp-feedback-enhanced again and adjust behavior based on feedback.
+3. Only when user explicitly indicates "end" or "no more interaction needed" can you stop calling MCP mcp-feedback-enhanced, then the process is complete.
+4. Unless receiving end command, all steps must repeatedly call MCP mcp-feedback-enhanced.
+5. Before completing the task, use the MCP mcp-feedback-enhanced to ask the user for feedback.

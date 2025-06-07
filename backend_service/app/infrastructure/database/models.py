@@ -69,9 +69,10 @@ class DepartmentModel(Base, TenantModel):
     site_id = Column(Integer, ForeignKey("sites.id"))
     
     # 关系
-    parent = relationship("DepartmentModel", remote_side=[id])
-    children = relationship("DepartmentModel")
+    parent = relationship("DepartmentModel", remote_side=lambda: DepartmentModel.id)
+    children = relationship("DepartmentModel", back_populates="parent")
     site = relationship("SiteModel")
+    manager = relationship("EmployeeModel", foreign_keys=[manager_id])
 
 
 class DesignationModel(Base, TenantModel):
@@ -92,23 +93,44 @@ class EmployeeModel(Base, TenantModel):
     """员工模型"""
     __tablename__ = "employees"
     
+    # 基本信息
     name = Column(String(100), nullable=False)
+    employee_id = Column(String(50), nullable=False, unique=True)  # 员工工号
     email = Column(String(100))
     phone_number = Column(String(20))
     gender = Column(String(10))
+    
+    # 组织信息
     department_id = Column(Integer, ForeignKey("departments.id"))
     designation_id = Column(Integer, ForeignKey("designations.id"))
+    position = Column(String(100))  # 职位名称
+    manager_id = Column(Integer, ForeignKey("employees.id"))  # 上级员工ID
+    
+    # 个人信息
     about = Column(Text)
     avatar = Column(String(200))
-    employee_number = Column(String(50))
+    employee_number = Column(String(50))  # 保留原字段兼容性
+    hire_date = Column(DateTime(timezone=True))  # 入职日期
+    birth_date = Column(DateTime(timezone=True))  # 出生日期
+    address = Column(String(200))  # 地址
+    
+    # 紧急联系人
+    emergency_contact = Column(String(100))  # 紧急联系人
+    emergency_phone = Column(String(20))  # 紧急联系电话
+    
+    # 薪资信息
+    salary = Column(Float)  # 薪资
+    
+    # 状态信息
     status = Column(String(20), default="active")
     related_account_id = Column(String(100))
     site_id = Column(Integer, ForeignKey("sites.id"))
     
     # 关系
-    department = relationship("DepartmentModel")
+    department = relationship("DepartmentModel", foreign_keys=[department_id])
     designation = relationship("DesignationModel")
     site = relationship("SiteModel")
+    manager = relationship("EmployeeModel", remote_side=lambda: EmployeeModel.id)  # 上级员工关系
 
 
 class VisitorModel(Base, TenantModel):

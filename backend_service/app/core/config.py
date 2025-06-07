@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/1"
     
+    # Celery任务配置
+    celery_task_serializer: str = "json"
+    celery_result_serializer: str = "json"
+    celery_accept_content: List[str] = ["json"]
+    celery_timezone: str = "UTC"
+    celery_enable_utc: bool = True
+    
     # 多租户配置
     default_tenant_id: str = "default"
     
