@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 访客详情</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .sidebar-transition {
+            transition: all 0.3s ease-in-out;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .timeline-item {
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 40px;
+            bottom: -20px;
+            width: 2px;
+            background: #e5e7eb;
+        }
+        .timeline-item:last-child::before {
+            display: none;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-approved {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-rejected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .status-checkedin {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .info-card {
+            transition: all 0.3s ease;
+        }
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 侧边栏 -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg sidebar-transition">
+        <!-- Logo -->
+        <div class="flex items-center justify-center h-16 px-4 gradient-bg">
+            <i class="fas fa-users text-white text-2xl mr-3"></i>
+            <span class="text-white font-bold text-lg">访客管理系统</span>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="mt-8">
+            <div class="px-4 space-y-2">
+                <!-- 仪表板 -->
+                <a href="dashboard.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    <span>仪表板</span>
+                </a>
+
+                <!-- 访客管理 -->
+                <div class="space-y-1">
+                    <button class="flex items-center justify-between w-full px-4 py-3 text-blue-600 bg-blue-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-users mr-3"></i>
+                            <span>访客管理</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div class="ml-6 space-y-1">
+                        <a href="visitor-list.html" class="block px-4 py-2 text-sm text-blue-600 font-medium">访客列表</a>
+                        <a href="visitor-create.html" class="block px-4 py-2 text-sm text-gray-600 hover:text-blue-600">新增访客</a>
+                        <a href="visitor-approval.html" class="block px-4 py-2 text-sm text-gray-600 hover:text-blue-600">访客审批</a>
+                    </div>
+                </div>
+
+                <!-- 员工管理 -->
+                <a href="employee-list.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-id-badge mr-3"></i>
+                    <span>员工管理</span>
+                </a>
+
+                <!-- 部门管理 -->
+                <a href="department-list.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-building mr-3"></i>
+                    <span>部门管理</span>
+                </a>
+
+                <!-- 系统设置 -->
+                <a href="settings.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-cog mr-3"></i>
+                    <span>系统设置</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- 用户信息 -->
+        <div class="absolute bottom-0 w-full p-4">
+            <div class="flex items-center p-3 bg-gray-100 rounded-lg">
+                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                     alt="用户头像" class="w-10 h-10 rounded-full mr-3">
+                <div class="flex-1">
+                    <div class="text-sm font-medium text-gray-900">张管理员</div>
+                    <div class="text-xs text-gray-500">系统管理员</div>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="ml-64">
+        <!-- 顶部导航栏 -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div class="flex items-center">
+                    <!-- 面包屑导航 -->
+                    <nav class="flex items-center space-x-2 text-sm text-gray-500">
+                        <a href="dashboard.html" class="hover:text-blue-600">仪表板</a>
+                        <i class="fas fa-chevron-right text-xs"></i>
+                        <a href="visitor-list.html" class="hover:text-blue-600">访客列表</a>
+                        <i class="fas fa-chevron-right text-xs"></i>
+                        <span class="text-gray-900 font-medium">访客详情</span>
+                    </nav>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-check mr-2"></i>
+                        审批通过
+                    </button>
+                    <button class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-times mr-2"></i>
+                        拒绝申请
+                    </button>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-edit mr-2"></i>
+                        编辑信息
+                    </button>
+                    <button class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-print mr-2"></i>
+                        打印
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容 -->
+        <main class="p-6">
+            <!-- 访客基本信息 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- 访客头像和基本信息 -->
+                <div class="lg:col-span-1">
+                    <div class="info-card bg-white rounded-lg shadow-sm p-6 text-center">
+                        <div class="relative inline-block mb-4">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-24 h-24 rounded-full mx-auto border-4 border-blue-100">
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900 mb-1">李明</h2>
+                        <p class="text-gray-500 mb-3">高级软件工程师</p>
+                        <div class="status-badge status-approved mb-4">
+                            <i class="fas fa-check-circle mr-1"></i>
+                            已审批
+                        </div>
+                        
+                        <!-- 二维码 -->
+                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                            <div class="text-sm text-gray-600 mb-2">访客二维码</div>
+                            <div class="w-24 h-24 bg-white border-2 border-gray-200 rounded-lg mx-auto flex items-center justify-center">
+                                <i class="fas fa-qrcode text-3xl text-gray-400"></i>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-2">扫码快速签到</div>
+                        </div>
+
+                        <!-- 快速操作 -->
+                        <div class="space-y-2">
+                            <button class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-sign-in-alt mr-2"></i>
+                                签到
+                            </button>
+                            <button class="w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                                <i class="fas fa-sign-out-alt mr-2"></i>
+                                签出
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 详细信息 -->
+                <div class="lg:col-span-2">
+                    <div class="info-card bg-white rounded-lg shadow-sm p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                            <i class="fas fa-user text-blue-600 mr-2"></i>
+                            基本信息
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">姓名</label>
+                                <div class="text-gray-900">李明</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">性别</label>
+                                <div class="text-gray-900">男</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">手机号码</label>
+                                <div class="text-gray-900">138****8888</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">身份证号</label>
+                                <div class="text-gray-900">320***********1234</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">公司名称</label>
+                                <div class="text-gray-900">ABC科技有限公司</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">职位</label>
+                                <div class="text-gray-900">高级软件工程师</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">邮箱地址</label>
+                                <div class="text-gray-900">liming@abc.com</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">车牌号码</label>
+                                <div class="text-gray-900">苏A12345</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 访问信息和审批流程 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- 访问信息 -->
+                <div class="info-card bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-calendar-alt text-green-600 mr-2"></i>
+                        访问信息
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">访问目的</label>
+                            <div class="text-gray-900">技术交流与合作洽谈</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">被访问人</label>
+                            <div class="flex items-center">
+                                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                                     alt="员工头像" class="w-8 h-8 rounded-full mr-2">
+                                <div>
+                                    <div class="text-gray-900 font-medium">张工程师</div>
+                                    <div class="text-sm text-gray-500">研发部 / 技术总监</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">访问时间</label>
+                            <div class="text-gray-900">2024-12-27 14:00 - 17:00</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">访问地点</label>
+                            <div class="text-gray-900">总部大楼 - 会议室A</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">同行人员</label>
+                            <div class="flex items-center space-x-2">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">王助理</span>
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">刘经理</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">备注说明</label>
+                            <div class="text-gray-900">需要准备项目演示材料，预计会议时长3小时</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 审批流程 -->
+                <div class="info-card bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-route text-purple-600 mr-2"></i>
+                        审批流程
+                    </h3>
+                    <div class="space-y-4">
+                        <!-- 时间轴 -->
+                        <div class="timeline-item">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-check text-white text-sm"></i>
+                                </div>
+                                <div class="ml-4 flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">申请提交</h4>
+                                        <span class="text-xs text-gray-500">2024-12-26 10:30</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">访客提交访问申请</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-check text-white text-sm"></i>
+                                </div>
+                                <div class="ml-4 flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">被访人确认</h4>
+                                        <span class="text-xs text-gray-500">2024-12-26 11:15</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">张工程师确认访问安排</p>
+                                    <div class="mt-2">
+                                        <span class="status-badge status-approved">已确认</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-check text-white text-sm"></i>
+                                </div>
+                                <div class="ml-4 flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">安全审批</h4>
+                                        <span class="text-xs text-gray-500">2024-12-26 14:20</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">安全部门审批通过</p>
+                                    <div class="mt-2">
+                                        <span class="status-badge status-approved">审批通过</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-clock text-white text-sm"></i>
+                                </div>
+                                <div class="ml-4 flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">等待签到</h4>
+                                        <span class="text-xs text-gray-500">预计 2024-12-27 14:00</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">访客可在预约时间签到</p>
+                                    <div class="mt-2">
+                                        <span class="status-badge status-pending">待签到</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 签到记录和附件信息 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- 签到记录 -->
+                <div class="info-card bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-map-marker-alt text-red-600 mr-2"></i>
+                        签到记录
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-900">当前状态</span>
+                                <span class="status-badge status-pending">未签到</span>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                预约时间：2024-12-27 14:00 - 17:00
+                            </div>
+                        </div>
+
+                        <!-- 历史签到记录 -->
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 mb-3">历史访问记录</h4>
+                            <div class="space-y-3">
+                                <div class="border border-gray-200 rounded-lg p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-900">2024-11-15</span>
+                                        <span class="status-badge status-checkedin">已完成</span>
+                                    </div>
+                                    <div class="text-sm text-gray-600">
+                                        <div>签到：09:30 | 签出：17:45</div>
+                                        <div>地点：总部大楼 - 会议室B</div>
+                                    </div>
+                                </div>
+                                <div class="border border-gray-200 rounded-lg p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-900">2024-10-22</span>
+                                        <span class="status-badge status-checkedin">已完成</span>
+                                    </div>
+                                    <div class="text-sm text-gray-600">
+                                        <div>签到：14:15 | 签出：16:30</div>
+                                        <div>地点：总部大楼 - 技术部</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 附件和文档 -->
+                <div class="info-card bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-paperclip text-orange-600 mr-2"></i>
+                        附件文档
+                    </h3>
+                    <div class="space-y-4">
+                        <!-- 身份证件 -->
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 mb-3">身份证件</h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="border border-gray-200 rounded-lg p-3 text-center">
+                                    <img src="https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=120&h=80&fit=crop" 
+                                         alt="身份证正面" class="w-full h-16 object-cover rounded mb-2">
+                                    <div class="text-xs text-gray-600">身份证正面</div>
+                                </div>
+                                <div class="border border-gray-200 rounded-lg p-3 text-center">
+                                    <img src="https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=120&h=80&fit=crop" 
+                                         alt="身份证反面" class="w-full h-16 object-cover rounded mb-2">
+                                    <div class="text-xs text-gray-600">身份证反面</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 其他文档 -->
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 mb-3">相关文档</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center p-3 border border-gray-200 rounded-lg">
+                                    <i class="fas fa-file-pdf text-red-500 mr-3"></i>
+                                    <div class="flex-1">
+                                        <div class="text-sm font-medium text-gray-900">技术方案书.pdf</div>
+                                        <div class="text-xs text-gray-500">2.3 MB</div>
+                                    </div>
+                                    <button class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center p-3 border border-gray-200 rounded-lg">
+                                    <i class="fas fa-file-word text-blue-500 mr-3"></i>
+                                    <div class="flex-1">
+                                        <div class="text-sm font-medium text-gray-900">合作协议草案.docx</div>
+                                        <div class="text-xs text-gray-500">1.8 MB</div>
+                                    </div>
+                                    <button class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 上传新文档 -->
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                            <i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>
+                            <div class="text-sm text-gray-600">点击或拖拽文件到此处上传</div>
+                            <button class="mt-2 text-blue-600 hover:text-blue-800 text-sm">
+                                选择文件
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="info-card bg-white rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-history text-gray-600 mr-2"></i>
+                    操作日志
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作人</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作类型</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">详细说明</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-12-26 14:20</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">安全管理员</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-approved">审批通过</span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">安全部门审批通过访问申请</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-12-26 11:15</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">张工程师</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-approved">确认访问</span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">被访人确认访问时间和地点</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-12-26 10:30</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">李明</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-checkedin">提交申请</span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">访客提交访问申请并上传相关文档</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 审批按钮功能
+            const approveBtn = document.querySelector('.bg-green-600');
+            const rejectBtn = document.querySelector('.bg-red-600');
+
+            approveBtn.addEventListener('click', function() {
+                if (confirm('确认审批通过此访客申请？')) {
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
+                    this.disabled = true;
+                    
+                    setTimeout(() => {
+                        this.innerHTML = '<i class="fas fa-check mr-2"></i>已通过';
+                        this.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        this.classList.add('bg-gray-400');
+                    }, 1500);
+                }
+            });
+
+            rejectBtn.addEventListener('click', function() {
+                if (confirm('确认拒绝此访客申请？')) {
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
+                    this.disabled = true;
+                    
+                    setTimeout(() => {
+                        this.innerHTML = '<i class="fas fa-times mr-2"></i>已拒绝';
+                        this.classList.remove('bg-red-600', 'hover:bg-red-700');
+                        this.classList.add('bg-gray-400');
+                    }, 1500);
+                }
+            });
+
+            // 文件上传功能
+            const uploadArea = document.querySelector('.border-dashed');
+            uploadArea.addEventListener('click', function() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
+                input.accept = '.pdf,.doc,.docx,.jpg,.png';
+                input.click();
+                
+                input.addEventListener('change', function() {
+                    if (this.files.length > 0) {
+                        uploadArea.innerHTML = `
+                            <i class="fas fa-check-circle text-green-500 text-2xl mb-2"></i>
+                            <div class="text-sm text-green-600">已选择 ${this.files.length} 个文件</div>
+                            <button class="mt-2 text-blue-600 hover:text-blue-800 text-sm">重新选择</button>
+                        `;
+                    }
+                });
+            });
+
+            // 签到/签出按钮功能
+            const checkinBtn = document.querySelector('.bg-blue-600');
+            const checkoutBtn = document.querySelector('.bg-gray-600');
+
+            checkinBtn.addEventListener('click', function() {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>签到中...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-check mr-2"></i>已签到';
+                    this.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    this.classList.add('bg-green-600');
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.classList.remove('bg-gray-400');
+                    checkoutBtn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                }, 1500);
+            });
+        });
+    </script>
+</body>
+</html> 

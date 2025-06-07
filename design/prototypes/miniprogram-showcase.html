@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 小程序端展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .miniprogram-frame {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 20px;
+            padding: 4px;
+            position: relative;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+        .miniprogram-screen {
+            width: 100%;
+            height: 100%;
+            background: #F7F7F7;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+        .mp-status-bar {
+            height: 44px;
+            background: #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .mp-nav-bar {
+            height: 44px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-bottom: 1px solid #E5E5E5;
+        }
+        .mp-nav-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #000;
+        }
+        .mp-nav-back {
+            position: absolute;
+            left: 16px;
+            color: #576B95;
+            font-size: 16px;
+        }
+        .mp-nav-more {
+            position: absolute;
+            right: 16px;
+            color: #576B95;
+        }
+        .mp-capsule {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        .mp-content {
+            height: calc(100% - 88px);
+            overflow-y: auto;
+            background: #F7F7F7;
+        }
+        .mp-page {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .mp-page.active {
+            display: block;
+        }
+        .mp-card {
+            background: white;
+            margin: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .mp-list-item {
+            padding: 16px;
+            border-bottom: 1px solid #F0F0F0;
+            display: flex;
+            align-items: center;
+        }
+        .mp-list-item:last-child {
+            border-bottom: none;
+        }
+        .mp-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            margin-right: 12px;
+        }
+        .mp-button {
+            background: #07C160;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            margin: 8px;
+        }
+        .mp-button-primary {
+            background: #576B95;
+        }
+        .mp-button-warn {
+            background: #FA5151;
+        }
+        .mp-form-item {
+            background: white;
+            margin: 12px;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .mp-form-label {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .mp-input {
+            width: 100%;
+            padding: 8px 0;
+            border: none;
+            border-bottom: 1px solid #E5E5E5;
+            font-size: 16px;
+            outline: none;
+        }
+        .mp-picker {
+            padding: 8px 0;
+            border-bottom: 1px solid #E5E5E5;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mp-tab-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: white;
+            border-top: 1px solid #E5E5E5;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+        }
+        .mp-tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #999;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .mp-tab-item.active {
+            color: #576B95;
+        }
+        .mp-tab-item i {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        .mp-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 12px;
+        }
+        .mp-stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .mp-stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #576B95;
+        }
+        .mp-stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .mp-status-tag {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .mp-status-success {
+            background: #E8F5E8;
+            color: #07C160;
+        }
+        .mp-status-warning {
+            background: #FFF2E8;
+            color: #FA9550;
+        }
+        .mp-status-error {
+            background: #FFEBEB;
+            color: #FA5151;
+        }
+        .mp-qr-container {
+            background: white;
+            margin: 12px;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .mp-qr-code {
+            width: 200px;
+            height: 200px;
+            background: #F0F0F0;
+            border: 2px dashed #576B95;
+            border-radius: 8px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .mp-scan-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #576B95;
+            animation: mpScan 2s linear infinite;
+        }
+        @keyframes mpScan {
+            0% { top: 0; }
+            100% { top: 196px; }
+        }
+        .mp-action-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .mp-action-sheet.show {
+            transform: translateY(0);
+        }
+        .mp-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 999;
+        }
+        .mp-modal-overlay.show {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen flex items-center justify-center p-8">
+        <div class="max-w-6xl w-full">
+            <!-- 标题 -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">访客管理系统 - 小程序端展示</h1>
+                <p class="text-gray-600">微信小程序风格界面设计</p>
+            </div>
+
+            <!-- 小程序模拟器 -->
+            <div class="flex justify-center">
+                <div class="miniprogram-frame">
+                    <div class="miniprogram-screen">
+                        <!-- 状态栏 -->
+                        <div class="mp-status-bar">
+                            <span>9:41</span>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-signal text-xs"></i>
+                                <i class="fas fa-wifi text-xs"></i>
+                                <i class="fas fa-battery-three-quarters text-xs"></i>
+                            </div>
+                        </div>
+
+                        <!-- 导航栏 -->
+                        <div class="mp-nav-bar">
+                            <div class="mp-nav-back" style="display: none;">
+                                <i class="fas fa-arrow-left"></i>
+                            </div>
+                            <div class="mp-nav-title">访客管理</div>
+                            <div class="mp-capsule">
+                                <i class="fas fa-ellipsis-h text-gray-600 mr-2"></i>
+                                <i class="fas fa-times text-gray-600"></i>
+                            </div>
+                        </div>
+
+                        <!-- 内容区域 -->
+                        <div class="mp-content">
+                            <!-- 首页 -->
+                            <div id="mp-home" class="mp-page active">
+                                <!-- 用户信息卡片 -->
+                                <div class="mp-card">
+                                    <div class="p-4 flex items-center">
+                                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face" 
+                                             alt="用户头像" class="w-12 h-12 rounded-full mr-3">
+                                        <div class="flex-1">
+                                            <div class="font-semibold">张管理员</div>
+                                            <div class="text-sm text-gray-500">系统管理员</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-xs text-gray-400">今日签到</div>
+                                            <div class="text-sm font-semibold text-green-600">8人</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 统计数据 -->
+                                <div class="mp-stats-grid">
+                                    <div class="mp-stat-card">
+                                        <div class="mp-stat-number">12</div>
+                                        <div class="mp-stat-label">今日访客</div>
+                                    </div>
+                                    <div class="mp-stat-card">
+                                        <div class="mp-stat-number">3</div>
+                                        <div class="mp-stat-label">待审批</div>
+                                    </div>
+                                    <div class="mp-stat-card">
+                                        <div class="mp-stat-number">8</div>
+                                        <div class="mp-stat-label">已签到</div>
+                                    </div>
+                                    <div class="mp-stat-card">
+                                        <div class="mp-stat-number">156</div>
+                                        <div class="mp-stat-label">本月访客</div>
+                                    </div>
+                                </div>
+
+                                <!-- 快速操作 -->
+                                <div class="mp-card">
+                                    <div class="p-4">
+                                        <h3 class="font-semibold mb-3">快速操作</h3>
+                                        <div class="grid grid-cols-3 gap-4 text-center">
+                                            <div class="p-3">
+                                                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                    <i class="fas fa-user-plus text-blue-600"></i>
+                                                </div>
+                                                <div class="text-xs text-gray-600">新增访客</div>
+                                            </div>
+                                            <div class="p-3">
+                                                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                    <i class="fas fa-qrcode text-green-600"></i>
+                                                </div>
+                                                <div class="text-xs text-gray-600">扫码签到</div>
+                                            </div>
+                                            <div class="p-3">
+                                                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                    <i class="fas fa-check-circle text-orange-600"></i>
+                                                </div>
+                                                <div class="text-xs text-gray-600">访客审批</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 最近访客 -->
+                                <div class="mp-card">
+                                    <div class="p-4 border-b border-gray-100">
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="font-semibold">最近访客</h3>
+                                            <span class="text-sm text-blue-600">查看更多</span>
+                                        </div>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客" class="mp-avatar">
+                                        <div class="flex-1">
+                                            <div class="font-medium">李明</div>
+                                            <div class="text-sm text-gray-500">ABC科技有限公司</div>
+                                        </div>
+                                        <div class="mp-status-tag mp-status-success">已审批</div>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客" class="mp-avatar">
+                                        <div class="flex-1">
+                                            <div class="font-medium">王小姐</div>
+                                            <div class="text-sm text-gray-500">XYZ贸易公司</div>
+                                        </div>
+                                        <div class="mp-status-tag mp-status-warning">待审批</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 访客列表页 -->
+                            <div id="mp-visitors" class="mp-page">
+                                <!-- 搜索栏 -->
+                                <div class="bg-white mx-3 my-2 rounded-lg p-3">
+                                    <div class="flex items-center bg-gray-100 rounded-lg px-3 py-2">
+                                        <i class="fas fa-search text-gray-400 mr-2"></i>
+                                        <input type="text" placeholder="搜索访客姓名或公司" class="flex-1 bg-transparent outline-none text-sm">
+                                    </div>
+                                </div>
+
+                                <!-- 筛选标签 -->
+                                <div class="bg-white mx-3 mb-2 rounded-lg p-3">
+                                    <div class="flex space-x-2 overflow-x-auto">
+                                        <button class="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-sm whitespace-nowrap">全部</button>
+                                        <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm whitespace-nowrap">待审批</button>
+                                        <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm whitespace-nowrap">已签到</button>
+                                        <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm whitespace-nowrap">已完成</button>
+                                        <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm whitespace-nowrap">已拒绝</button>
+                                    </div>
+                                </div>
+
+                                <!-- 访客列表 -->
+                                <div class="mp-card">
+                                    <div class="mp-list-item">
+                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客" class="mp-avatar">
+                                        <div class="flex-1">
+                                            <div class="font-medium">李明</div>
+                                            <div class="text-sm text-gray-500">技术交流 · 14:00-17:00</div>
+                                            <div class="text-xs text-gray-400">被访人：张工程师</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="mp-status-tag mp-status-success">已审批</div>
+                                            <div class="text-xs text-gray-400 mt-1">今天</div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客" class="mp-avatar">
+                                        <div class="flex-1">
+                                            <div class="font-medium">王小姐</div>
+                                            <div class="text-sm text-gray-500">商务洽谈 · 09:00-12:00</div>
+                                            <div class="text-xs text-gray-400">被访人：李经理</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="mp-status-tag mp-status-warning">待审批</div>
+                                            <div class="text-xs text-gray-400 mt-1">明天</div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客" class="mp-avatar">
+                                        <div class="flex-1">
+                                            <div class="font-medium">张先生</div>
+                                            <div class="text-sm text-gray-500">项目评审 · 15:30-18:00</div>
+                                            <div class="text-xs text-gray-400">被访人：陈总监</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="mp-status-tag mp-status-success">已签到</div>
+                                            <div class="text-xs text-gray-400 mt-1">昨天</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 扫码页面 -->
+                            <div id="mp-scan" class="mp-page">
+                                <div class="text-center p-4">
+                                    <h3 class="text-lg font-semibold mb-2">扫码签到</h3>
+                                    <p class="text-gray-500 text-sm">请将访客二维码放入扫描框内</p>
+                                </div>
+
+                                <div class="mp-qr-container">
+                                    <div class="mp-qr-code">
+                                        <div class="mp-scan-animation"></div>
+                                        <i class="fas fa-qrcode text-4xl text-gray-400"></i>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mb-4">扫描访客二维码进行快速签到</p>
+                                    <button class="mp-button mp-button-primary">手动输入签到码</button>
+                                </div>
+
+                                <!-- 签到统计 -->
+                                <div class="mp-card">
+                                    <div class="p-4 border-b border-gray-100">
+                                        <h3 class="font-semibold">今日签到统计</h3>
+                                    </div>
+                                    <div class="p-4">
+                                        <div class="flex justify-between items-center mb-3">
+                                            <div class="flex items-center">
+                                                <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                                <span class="text-gray-600">已签到</span>
+                                            </div>
+                                            <span class="font-semibold text-green-600">8人</span>
+                                        </div>
+                                        <div class="flex justify-between items-center mb-3">
+                                            <div class="flex items-center">
+                                                <div class="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
+                                                <span class="text-gray-600">待签到</span>
+                                            </div>
+                                            <span class="font-semibold text-orange-600">4人</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <div class="flex items-center">
+                                                <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                                                <span class="text-gray-600">已签出</span>
+                                            </div>
+                                            <span class="font-semibold text-blue-600">3人</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 新增访客页面 -->
+                            <div id="mp-add" class="mp-page">
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">访客姓名</div>
+                                    <input type="text" class="mp-input" placeholder="请输入访客姓名">
+                                </div>
+
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">手机号码</div>
+                                    <input type="tel" class="mp-input" placeholder="请输入手机号码">
+                                </div>
+
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">公司名称</div>
+                                    <input type="text" class="mp-input" placeholder="请输入公司名称">
+                                </div>
+
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">访问目的</div>
+                                    <div class="mp-picker">
+                                        <span class="text-gray-400">请选择访问目的</span>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">被访问人</div>
+                                    <div class="mp-picker">
+                                        <span class="text-gray-400">请选择被访问人</span>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">访问时间</div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="mp-picker">
+                                            <span class="text-gray-400">选择日期</span>
+                                            <i class="fas fa-chevron-right text-gray-400"></i>
+                                        </div>
+                                        <div class="mp-picker">
+                                            <span class="text-gray-400">选择时间</span>
+                                            <i class="fas fa-chevron-right text-gray-400"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mp-form-item">
+                                    <div class="mp-form-label">备注说明</div>
+                                    <textarea class="mp-input" rows="3" placeholder="请输入备注说明"></textarea>
+                                </div>
+
+                                <div class="p-4">
+                                    <button class="mp-button w-full">提交申请</button>
+                                </div>
+                            </div>
+
+                            <!-- 个人中心页面 -->
+                            <div id="mp-profile" class="mp-page">
+                                <!-- 用户信息 -->
+                                <div class="mp-card">
+                                    <div class="p-4 flex items-center">
+                                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=60&fit=crop&crop=face" 
+                                             alt="用户头像" class="w-15 h-15 rounded-full mr-4">
+                                        <div class="flex-1">
+                                            <div class="font-semibold text-lg">张管理员</div>
+                                            <div class="text-gray-500">系统管理员</div>
+                                            <div class="text-sm text-gray-400">工号：A001</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+
+                                <!-- 功能菜单 -->
+                                <div class="mp-card">
+                                    <div class="mp-list-item">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-chart-bar text-blue-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">数据统计</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-history text-green-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">操作记录</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-bell text-orange-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">消息通知</div>
+                                        </div>
+                                        <div class="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center mr-2">3</div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+
+                                <!-- 设置菜单 -->
+                                <div class="mp-card">
+                                    <div class="mp-list-item">
+                                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-cog text-purple-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">系统设置</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-question-circle text-gray-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">帮助中心</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                    <div class="mp-list-item">
+                                        <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-info-circle text-gray-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">关于我们</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+
+                                <!-- 退出登录 -->
+                                <div class="p-4">
+                                    <button class="mp-button mp-button-warn w-full">退出登录</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 底部标签栏 -->
+                        <div class="mp-tab-bar">
+                            <div class="mp-tab-item active" data-page="mp-home">
+                                <i class="fas fa-home"></i>
+                                <span>首页</span>
+                            </div>
+                            <div class="mp-tab-item" data-page="mp-visitors">
+                                <i class="fas fa-users"></i>
+                                <span>访客</span>
+                            </div>
+                            <div class="mp-tab-item" data-page="mp-scan">
+                                <i class="fas fa-qrcode"></i>
+                                <span>扫码</span>
+                            </div>
+                            <div class="mp-tab-item" data-page="mp-add">
+                                <i class="fas fa-plus"></i>
+                                <span>新增</span>
+                            </div>
+                            <div class="mp-tab-item" data-page="mp-profile">
+                                <i class="fas fa-user"></i>
+                                <span>我的</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 功能说明 -->
+            <div class="mt-8 bg-white rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fab fa-weixin text-green-600 mr-2"></i>
+                    小程序端功能特性
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div>• 微信小程序原生设计风格，符合用户使用习惯</div>
+                    <div>• 轻量化界面设计，加载速度快</div>
+                    <div>• 完整的访客管理流程，无需下载APP</div>
+                    <div>• 微信生态集成，支持微信登录和分享</div>
+                    <div>• 扫码功能集成，利用微信扫码能力</div>
+                    <div>• 响应式设计，适配各种微信环境</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框遮罩 -->
+    <div class="mp-modal-overlay" id="modalOverlay"></div>
+
+    <!-- 操作面板 -->
+    <div class="mp-action-sheet" id="actionSheet">
+        <div class="text-center mb-4">
+            <h3 class="font-semibold">选择操作</h3>
+        </div>
+        <div class="space-y-2">
+            <button class="mp-button w-full">审批通过</button>
+            <button class="mp-button mp-button-warn w-full">拒绝申请</button>
+            <button class="mp-button mp-button-primary w-full">查看详情</button>
+        </div>
+        <button class="mt-4 w-full py-3 text-center text-gray-600" onclick="hideActionSheet()">取消</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 标签栏切换功能
+            const tabItems = document.querySelectorAll('.mp-tab-item');
+            const pages = document.querySelectorAll('.mp-page');
+            const navTitle = document.querySelector('.mp-nav-title');
+            const navBack = document.querySelector('.mp-nav-back');
+
+            const pageNames = {
+                'mp-home': '访客管理',
+                'mp-visitors': '访客列表',
+                'mp-scan': '扫码签到',
+                'mp-add': '新增访客',
+                'mp-profile': '个人中心'
+            };
+
+            tabItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const targetPage = this.getAttribute('data-page');
+
+                    // 移除所有活动状态
+                    tabItems.forEach(tab => tab.classList.remove('active'));
+                    pages.forEach(page => page.classList.remove('active'));
+
+                    // 激活当前标签和页面
+                    this.classList.add('active');
+                    document.getElementById(targetPage).classList.add('active');
+
+                    // 更新导航栏标题
+                    navTitle.textContent = pageNames[targetPage];
+
+                    // 控制返回按钮显示
+                    if (targetPage === 'mp-home') {
+                        navBack.style.display = 'none';
+                    } else {
+                        navBack.style.display = 'block';
+                    }
+                });
+            });
+
+            // 返回按钮功能
+            navBack.addEventListener('click', function() {
+                // 回到首页
+                tabItems.forEach(tab => tab.classList.remove('active'));
+                pages.forEach(page => page.classList.remove('active'));
+                
+                document.querySelector('[data-page="mp-home"]').classList.add('active');
+                document.getElementById('mp-home').classList.add('active');
+                navTitle.textContent = '访客管理';
+                this.style.display = 'none';
+            });
+
+            // 扫码动画
+            const scanLine = document.querySelector('.mp-scan-animation');
+            if (scanLine) {
+                setInterval(() => {
+                    scanLine.style.animation = 'none';
+                    setTimeout(() => {
+                        scanLine.style.animation = 'mpScan 2s linear infinite';
+                    }, 100);
+                }, 3000);
+            }
+
+            // 长按显示操作菜单
+            const listItems = document.querySelectorAll('.mp-list-item');
+            listItems.forEach(item => {
+                let pressTimer;
+                
+                item.addEventListener('touchstart', function(e) {
+                    pressTimer = setTimeout(() => {
+                        showActionSheet();
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                    }, 500);
+                });
+
+                item.addEventListener('touchend', function() {
+                    clearTimeout(pressTimer);
+                });
+
+                item.addEventListener('touchmove', function() {
+                    clearTimeout(pressTimer);
+                });
+            });
+        });
+
+        function showActionSheet() {
+            document.getElementById('modalOverlay').classList.add('show');
+            document.getElementById('actionSheet').classList.add('show');
+        }
+
+        function hideActionSheet() {
+            document.getElementById('modalOverlay').classList.remove('show');
+            document.getElementById('actionSheet').classList.remove('show');
+        }
+
+        // 点击遮罩关闭
+        document.getElementById('modalOverlay').addEventListener('click', hideActionSheet);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - Glassmorphism风格登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 16px;
+            color: white;
+            width: 100%;
+            margin: 12px 0;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .glass-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .glass-button:active {
+            transform: translateY(0);
+        }
+
+        .glass-button-primary {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .glass-button-primary:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.2));
+        }
+
+        .glass-icon {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 32px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-social-button {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 12px;
+            margin: 8px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 20px;
+            color: white;
+        }
+
+        .glass-social-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .glass-checkbox {
+            position: relative;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+        }
+
+        .glass-checkbox input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .glass-checkbox-mark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 24px;
+            width: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .glass-checkbox input:checked ~ .glass-checkbox-mark {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .glass-checkbox-mark:after {
+            content: "";
+            position: absolute;
+            display: none;
+            left: 8px;
+            top: 4px;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .glass-checkbox input:checked ~ .glass-checkbox-mark:after {
+            display: block;
+        }
+
+        .floating-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .floating-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .floating-circle:nth-child(1) {
+            width: 200px;
+            height: 200px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-circle:nth-child(2) {
+            width: 150px;
+            height: 150px;
+            top: 60%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        .floating-circle:nth-child(3) {
+            width: 100px;
+            height: 100px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        .floating-circle:nth-child(4) {
+            width: 120px;
+            height: 120px;
+            top: 30%;
+            right: 30%;
+            animation-delay: 6s;
+        }
+
+        .floating-square {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border-radius: 20px;
+            animation: rotate 15s linear infinite;
+        }
+
+        .floating-square:nth-child(5) {
+            width: 80px;
+            height: 80px;
+            top: 20%;
+            left: 70%;
+            animation-delay: 1s;
+        }
+
+        .floating-square:nth-child(6) {
+            width: 60px;
+            height: 60px;
+            bottom: 30%;
+            right: 20%;
+            animation-delay: 3s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-30px) rotate(180deg);
+            }
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                box-shadow: 
+                    0 8px 32px rgba(0, 0, 0, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    0 0 20px rgba(255, 255, 255, 0.1);
+            }
+            to {
+                box-shadow: 
+                    0 8px 32px rgba(0, 0, 0, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    0 0 30px rgba(255, 255, 255, 0.2);
+            }
+        }
+
+        .text-glass {
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .text-glass-secondary {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .divider-glass {
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.3), 
+                transparent);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <!-- 浮动装饰元素 -->
+    <div class="floating-elements">
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+        <div class="floating-square"></div>
+        <div class="floating-square"></div>
+    </div>
+
+    <!-- Glassmorphism风格登录界面 -->
+    <div class="glass-card glow">
+        <!-- 头部图标 -->
+        <div class="glass-icon">
+            <i class="fas fa-users"></i>
+        </div>
+
+        <!-- 标题 -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-glass mb-2">访客管理系统</h1>
+            <p class="text-glass-secondary text-sm">Glassmorphism 设计风格</p>
+        </div>
+
+        <!-- 登录表单 -->
+        <form>
+            <div class="mb-4">
+                <input type="text" class="glass-input" placeholder="用户名" required>
+            </div>
+
+            <div class="mb-6">
+                <input type="password" class="glass-input" placeholder="密码" required>
+            </div>
+
+            <!-- 选项 -->
+            <div class="flex items-center justify-between mb-6">
+                <label class="flex items-center text-sm text-glass-secondary cursor-pointer">
+                    <div class="glass-checkbox">
+                        <input type="checkbox">
+                        <span class="glass-checkbox-mark"></span>
+                    </div>
+                    记住我
+                </label>
+                <a href="#" class="text-sm text-glass hover:text-white transition-colors">忘记密码？</a>
+            </div>
+
+            <!-- 登录按钮 -->
+            <button type="submit" class="glass-button-primary">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                登录
+            </button>
+
+            <!-- 分割线 -->
+            <div class="flex items-center my-8">
+                <div class="flex-1 divider-glass"></div>
+                <span class="px-4 text-sm text-glass-secondary">或使用</span>
+                <div class="flex-1 divider-glass"></div>
+            </div>
+
+            <!-- 社交登录 -->
+            <div class="flex justify-center space-x-4">
+                <button type="button" class="glass-social-button">
+                    <i class="fab fa-google"></i>
+                </button>
+                <button type="button" class="glass-social-button">
+                    <i class="fab fa-microsoft"></i>
+                </button>
+                <button type="button" class="glass-social-button">
+                    <i class="fab fa-apple"></i>
+                </button>
+                <button type="button" class="glass-social-button">
+                    <i class="fab fa-github"></i>
+                </button>
+            </div>
+        </form>
+
+        <!-- 底部链接 -->
+        <div class="text-center mt-8 pt-6">
+            <p class="text-sm text-glass-secondary">
+                还没有账户？
+                <a href="#" class="text-glass hover:text-white font-medium transition-colors">立即注册</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- 底部信息 -->
+    <div class="fixed bottom-4 left-4 text-xs text-glass-secondary">
+        <p>Glassmorphism Design</p>
+        <p>© 2024 访客管理系统</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 登录按钮点击效果
+            const loginButton = document.querySelector('.glass-button-primary');
+            loginButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // 添加加载状态
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>登录中...';
+                this.style.pointerEvents = 'none';
+                this.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1))';
+                
+                // 模拟登录过程
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-check mr-2"></i>登录成功';
+                    this.style.background = 'linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(76, 175, 80, 0.1))';
+                    
+                    setTimeout(() => {
+                        this.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>登录';
+                        this.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1))';
+                        this.style.pointerEvents = 'auto';
+                    }, 1500);
+                }, 2000);
+            });
+
+            // 社交登录按钮点击效果
+            const socialButtons = document.querySelectorAll('.glass-social-button');
+            socialButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const icon = this.querySelector('i');
+                    const platform = icon.classList.contains('fa-google') ? 'Google' :
+                                   icon.classList.contains('fa-microsoft') ? 'Microsoft' :
+                                   icon.classList.contains('fa-apple') ? 'Apple' : 'GitHub';
+                    
+                    // 添加点击动画
+                    this.style.transform = 'scale(0.95)';
+                    this.style.background = 'rgba(255, 255, 255, 0.3)';
+                    
+                    setTimeout(() => {
+                        this.style.transform = 'translateY(-2px)';
+                        this.style.background = 'rgba(255, 255, 255, 0.1)';
+                        alert(`Glassmorphism 风格的 ${platform} 登录\n\n特点：\n• 透明玻璃质感\n• 毛玻璃模糊效果\n• 优雅的光影层次\n• 现代科技感设计`);
+                    }, 150);
+                });
+            });
+
+            // 输入框焦点效果
+            const inputs = document.querySelectorAll('.glass-input');
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.style.transform = 'scale(1.02)';
+                    this.style.background = 'rgba(255, 255, 255, 0.15)';
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.background = 'rgba(255, 255, 255, 0.1)';
+                });
+
+                // 输入时的动态效果
+                input.addEventListener('input', function() {
+                    if (this.value.length > 0) {
+                        this.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                        this.style.boxShadow = '0 0 25px rgba(255, 255, 255, 0.15)';
+                    } else {
+                        this.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                        this.style.boxShadow = 'none';
+                    }
+                });
+            });
+
+            // 复选框点击效果
+            const checkbox = document.querySelector('.glass-checkbox input');
+            checkbox.addEventListener('change', function() {
+                const mark = this.nextElementSibling;
+                if (this.checked) {
+                    mark.style.transform = 'scale(1.1)';
+                    mark.style.background = 'rgba(255, 255, 255, 0.3)';
+                    setTimeout(() => {
+                        mark.style.transform = 'scale(1)';
+                    }, 200);
+                } else {
+                    mark.style.background = 'rgba(255, 255, 255, 0.1)';
+                }
+            });
+
+            // 鼠标移动视差效果
+            document.addEventListener('mousemove', function(e) {
+                const card = document.querySelector('.glass-card');
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                
+                const rotateX = (y / rect.height) * 10;
+                const rotateY = (x / rect.width) * 10;
+                
+                card.style.transform = `perspective(1000px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg)`;
+                
+                // 浮动元素视差
+                const floatingElements = document.querySelectorAll('.floating-circle, .floating-square');
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+                
+                floatingElements.forEach((element, index) => {
+                    const speed = (index + 1) * 0.3;
+                    const xMove = (mouseX - 0.5) * speed * 20;
+                    const yMove = (mouseY - 0.5) * speed * 20;
+                    
+                    element.style.transform += ` translate(${xMove}px, ${yMove}px)`;
+                });
+            });
+
+            // 鼠标离开时重置卡片
+            document.addEventListener('mouseleave', function() {
+                const card = document.querySelector('.glass-card');
+                card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+            });
+
+            // 动态背景渐变
+            let hue = 0;
+            setInterval(() => {
+                hue = (hue + 1) % 360;
+                document.body.style.background = `linear-gradient(135deg, 
+                    hsl(${hue}, 70%, 60%) 0%, 
+                    hsl(${(hue + 60) % 360}, 70%, 60%) 100%)`;
+            }, 100);
+        });
+    </script>
+</body>
+</html> 

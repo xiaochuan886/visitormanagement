@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 新增访客</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .form-step {
+            display: none;
+        }
+        .form-step.active {
+            display: block;
+        }
+        .step-indicator {
+            position: relative;
+        }
+        .step-indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: 100%;
+            height: 2px;
+            background-color: #e5e7eb;
+            transform: translateY(-50%);
+        }
+        .step-indicator.completed::after {
+            background-color: #10b981;
+        }
+        .step-indicator:last-child::after {
+            display: none;
+        }
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-user-plus text-blue-600 text-xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">新增访客</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="window.location.href='visitor-list.html'" 
+                            class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        返回列表
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 步骤指示器 -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center step-indicator completed" id="step1Indicator">
+                    <div class="flex items-center justify-center w-10 h-10 bg-green-500 text-white rounded-full">
+                        <i class="fas fa-user text-sm"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium text-gray-900">基本信息</span>
+                </div>
+                <div class="flex items-center step-indicator" id="step2Indicator">
+                    <div class="flex items-center justify-center w-10 h-10 bg-gray-300 text-gray-600 rounded-full">
+                        <i class="fas fa-building text-sm"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium text-gray-500">访问信息</span>
+                </div>
+                <div class="flex items-center step-indicator" id="step3Indicator">
+                    <div class="flex items-center justify-center w-10 h-10 bg-gray-300 text-gray-600 rounded-full">
+                        <i class="fas fa-file-alt text-sm"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium text-gray-500">附加信息</span>
+                </div>
+                <div class="flex items-center step-indicator" id="step4Indicator">
+                    <div class="flex items-center justify-center w-10 h-10 bg-gray-300 text-gray-600 rounded-full">
+                        <i class="fas fa-check text-sm"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium text-gray-500">确认提交</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表单容器 -->
+        <div class="bg-white rounded-lg shadow-sm">
+            <form id="visitorForm" class="p-8">
+                <!-- 步骤1: 基本信息 -->
+                <div class="form-step active" id="step1">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6">访客基本信息</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- 姓名 -->
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-user mr-2 text-gray-500"></i>
+                                姓名 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="name" name="name" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="请输入访客姓名">
+                        </div>
+
+                        <!-- 性别 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-venus-mars mr-2 text-gray-500"></i>
+                                性别
+                            </label>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="radio" name="gender" value="male" class="mr-2">
+                                    <span class="text-sm text-gray-700">男</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="gender" value="female" class="mr-2">
+                                    <span class="text-sm text-gray-700">女</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 手机号 -->
+                        <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-phone mr-2 text-gray-500"></i>
+                                手机号 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel" id="phone" name="phone" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="请输入手机号码">
+                        </div>
+
+                        <!-- 邮箱 -->
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-envelope mr-2 text-gray-500"></i>
+                                邮箱
+                            </label>
+                            <input type="email" id="email" name="email"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="请输入邮箱地址">
+                        </div>
+
+                        <!-- 身份证号 -->
+                        <div>
+                            <label for="idCard" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-id-card mr-2 text-gray-500"></i>
+                                身份证号
+                            </label>
+                            <input type="text" id="idCard" name="idCard"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="请输入身份证号码">
+                        </div>
+
+                        <!-- 公司 -->
+                        <div>
+                            <label for="company" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-building mr-2 text-gray-500"></i>
+                                公司/单位
+                            </label>
+                            <input type="text" id="company" name="company"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="请输入公司或单位名称">
+                        </div>
+                    </div>
+
+                    <!-- 头像上传 -->
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-camera mr-2 text-gray-500"></i>
+                            访客头像
+                        </label>
+                        <div class="flex items-center space-x-6">
+                            <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
+                                <img id="avatarPreview" src="" alt="头像预览" class="w-24 h-24 rounded-full object-cover hidden">
+                                <i id="avatarPlaceholder" class="fas fa-user text-gray-400 text-2xl"></i>
+                            </div>
+                            <div>
+                                <input type="file" id="avatar" name="avatar" accept="image/*" class="hidden">
+                                <button type="button" onclick="document.getElementById('avatar').click()"
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-upload mr-2"></i>
+                                    上传头像
+                                </button>
+                                <p class="text-xs text-gray-500 mt-1">支持 JPG、PNG 格式，大小不超过 2MB</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤2: 访问信息 -->
+                <div class="form-step" id="step2">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6">访问信息</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- 被访问人 -->
+                        <div>
+                            <label for="employee" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-user-tie mr-2 text-gray-500"></i>
+                                被访问人 <span class="text-red-500">*</span>
+                            </label>
+                            <select id="employee" name="employee" required
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">请选择被访问人</option>
+                                <option value="1">王工程师 - 技术部</option>
+                                <option value="2">刘经理 - 市场部</option>
+                                <option value="3">陈会计 - 财务部</option>
+                                <option value="4">孙主管 - 人事部</option>
+                            </select>
+                        </div>
+
+                        <!-- 访问部门 -->
+                        <div>
+                            <label for="department" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-building mr-2 text-gray-500"></i>
+                                访问部门 <span class="text-red-500">*</span>
+                            </label>
+                            <select id="department" name="department" required
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">请选择部门</option>
+                                <option value="tech">技术部</option>
+                                <option value="marketing">市场部</option>
+                                <option value="finance">财务部</option>
+                                <option value="hr">人事部</option>
+                            </select>
+                        </div>
+
+                        <!-- 访问日期 -->
+                        <div>
+                            <label for="visitDate" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-calendar mr-2 text-gray-500"></i>
+                                访问日期 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" id="visitDate" name="visitDate" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <!-- 访问时间 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-clock mr-2 text-gray-500"></i>
+                                访问时间 <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="time" id="startTime" name="startTime" required
+                                       class="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <input type="time" id="endTime" name="endTime" required
+                                       class="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <!-- 访问地点 -->
+                        <div class="md:col-span-2">
+                            <label for="location" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-map-marker-alt mr-2 text-gray-500"></i>
+                                访问地点
+                            </label>
+                            <input type="text" id="location" name="location"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="请输入具体访问地点，如会议室、办公室等">
+                        </div>
+                    </div>
+
+                    <!-- 访问目的 -->
+                    <div class="mt-6">
+                        <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-clipboard mr-2 text-gray-500"></i>
+                            访问目的 <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="purpose" name="purpose" rows="4" required
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="请详细描述访问目的和事由"></textarea>
+                    </div>
+                </div>
+
+                <!-- 步骤3: 附加信息 -->
+                <div class="form-step" id="step3">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6">附加信息</h3>
+                    
+                    <!-- 访客类型 -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-tags mr-2 text-gray-500"></i>
+                            访客类型
+                        </label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="visitorType" value="business" class="mr-2">
+                                <span class="text-sm">商务访问</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="visitorType" value="interview" class="mr-2">
+                                <span class="text-sm">面试</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="visitorType" value="delivery" class="mr-2">
+                                <span class="text-sm">送货</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="visitorType" value="other" class="mr-2">
+                                <span class="text-sm">其他</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 特殊需求 -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-exclamation-circle mr-2 text-gray-500"></i>
+                            特殊需求
+                        </label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="requirements" value="wheelchair" class="mr-2">
+                                <span class="text-sm text-gray-700">需要轮椅通道</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="requirements" value="parking" class="mr-2">
+                                <span class="text-sm text-gray-700">需要停车位</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="requirements" value="escort" class="mr-2">
+                                <span class="text-sm text-gray-700">需要专人陪同</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="requirements" value="vip" class="mr-2">
+                                <span class="text-sm text-gray-700">VIP接待</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 附件上传 -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-paperclip mr-2 text-gray-500"></i>
+                            相关附件
+                        </label>
+                        <div class="upload-area rounded-lg p-6 text-center">
+                            <input type="file" id="attachments" name="attachments" multiple class="hidden">
+                            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-3"></i>
+                            <p class="text-gray-600 mb-2">点击上传或拖拽文件到此处</p>
+                            <p class="text-xs text-gray-500">支持 PDF、DOC、JPG、PNG 格式，单个文件不超过 10MB</p>
+                            <button type="button" onclick="document.getElementById('attachments').click()"
+                                    class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                选择文件
+                            </button>
+                        </div>
+                        <div id="fileList" class="mt-3 space-y-2"></div>
+                    </div>
+
+                    <!-- 备注 -->
+                    <div>
+                        <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-sticky-note mr-2 text-gray-500"></i>
+                            备注信息
+                        </label>
+                        <textarea id="notes" name="notes" rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="其他需要说明的信息"></textarea>
+                    </div>
+                </div>
+
+                <!-- 步骤4: 确认提交 -->
+                <div class="form-step" id="step4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6">确认信息</h3>
+                    
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <div id="confirmationContent">
+                            <!-- 确认信息将在这里动态生成 -->
+                        </div>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                            <div class="text-sm text-blue-800">
+                                <p class="font-medium mb-1">提交说明：</p>
+                                <ul class="space-y-1 text-xs">
+                                    <li>• 提交后将发送审批通知给被访问人</li>
+                                    <li>• 审批通过后，访客将收到二维码和访问凭证</li>
+                                    <li>• 访客可凭二维码在前台快速签到</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 表单按钮 -->
+                <div class="flex justify-between pt-8 border-t">
+                    <button type="button" id="prevBtn" onclick="previousStep()" 
+                            class="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 hidden">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        上一步
+                    </button>
+                    
+                    <div class="flex space-x-3">
+                        <button type="button" onclick="saveDraft()" 
+                                class="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            <i class="fas fa-save mr-2"></i>
+                            保存草稿
+                        </button>
+                        
+                        <button type="button" id="nextBtn" onclick="nextStep()" 
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            下一步
+                            <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                        
+                        <button type="submit" id="submitBtn" 
+                                class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 hidden">
+                            <i class="fas fa-check mr-2"></i>
+                            提交申请
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 4;
+
+        // 头像上传预览
+        document.getElementById('avatar').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('avatarPreview');
+                    const placeholder = document.getElementById('avatarPlaceholder');
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 附件上传
+        document.getElementById('attachments').addEventListener('change', function(e) {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            Array.from(e.target.files).forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'flex items-center justify-between p-2 bg-gray-100 rounded';
+                fileItem.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-file text-gray-500 mr-2"></i>
+                        <span class="text-sm text-gray-700">${file.name}</span>
+                        <span class="text-xs text-gray-500 ml-2">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    </div>
+                    <button type="button" onclick="removeFile(${index})" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        });
+
+        // 拖拽上传
+        const uploadArea = document.querySelector('.upload-area');
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            document.getElementById('attachments').files = files;
+            document.getElementById('attachments').dispatchEvent(new Event('change'));
+        });
+
+        // 步骤导航
+        function nextStep() {
+            if (validateCurrentStep()) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    updateStepDisplay();
+                }
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepDisplay();
+            }
+        }
+
+        function updateStepDisplay() {
+            // 隐藏所有步骤
+            document.querySelectorAll('.form-step').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            // 显示当前步骤
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            
+            // 更新步骤指示器
+            for (let i = 1; i <= totalSteps; i++) {
+                const indicator = document.getElementById(`step${i}Indicator`);
+                const circle = indicator.querySelector('div');
+                const text = indicator.querySelector('span');
+                
+                if (i < currentStep) {
+                    // 已完成步骤
+                    circle.className = 'flex items-center justify-center w-10 h-10 bg-green-500 text-white rounded-full';
+                    text.className = 'ml-3 text-sm font-medium text-gray-900';
+                    indicator.classList.add('completed');
+                } else if (i === currentStep) {
+                    // 当前步骤
+                    circle.className = 'flex items-center justify-center w-10 h-10 bg-blue-500 text-white rounded-full';
+                    text.className = 'ml-3 text-sm font-medium text-gray-900';
+                    indicator.classList.remove('completed');
+                } else {
+                    // 未完成步骤
+                    circle.className = 'flex items-center justify-center w-10 h-10 bg-gray-300 text-gray-600 rounded-full';
+                    text.className = 'ml-3 text-sm font-medium text-gray-500';
+                    indicator.classList.remove('completed');
+                }
+            }
+            
+            // 更新按钮显示
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (currentStep === 1) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+            
+            if (currentStep === totalSteps) {
+                nextBtn.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+                generateConfirmation();
+            } else {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+            }
+        }
+
+        function validateCurrentStep() {
+            const currentStepElement = document.getElementById(`step${currentStep}`);
+            const requiredFields = currentStepElement.querySelectorAll('[required]');
+            
+            for (let field of requiredFields) {
+                if (!field.value.trim()) {
+                    field.focus();
+                    showMessage('请填写所有必填字段', 'error');
+                    return false;
+                }
+            }
+            
+            // 特殊验证
+            if (currentStep === 1) {
+                const phone = document.getElementById('phone').value;
+                if (!/^1[3-9]\d{9}$/.test(phone)) {
+                    showMessage('请输入正确的手机号码', 'error');
+                    return false;
+                }
+            }
+            
+            if (currentStep === 2) {
+                const startTime = document.getElementById('startTime').value;
+                const endTime = document.getElementById('endTime').value;
+                if (startTime >= endTime) {
+                    showMessage('结束时间必须晚于开始时间', 'error');
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        function generateConfirmation() {
+            const formData = new FormData(document.getElementById('visitorForm'));
+            const content = document.getElementById('confirmationContent');
+            
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-3">基本信息</h4>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-gray-500">姓名：</span>${formData.get('name') || '-'}</div>
+                            <div><span class="text-gray-500">手机：</span>${formData.get('phone') || '-'}</div>
+                            <div><span class="text-gray-500">邮箱：</span>${formData.get('email') || '-'}</div>
+                            <div><span class="text-gray-500">公司：</span>${formData.get('company') || '-'}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-3">访问信息</h4>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-gray-500">被访问人：</span>${getEmployeeName(formData.get('employee'))}</div>
+                            <div><span class="text-gray-500">访问日期：</span>${formData.get('visitDate') || '-'}</div>
+                            <div><span class="text-gray-500">访问时间：</span>${formData.get('startTime')} - ${formData.get('endTime')}</div>
+                            <div><span class="text-gray-500">访问目的：</span>${formData.get('purpose') || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getEmployeeName(employeeId) {
+            const employees = {
+                '1': '王工程师 - 技术部',
+                '2': '刘经理 - 市场部',
+                '3': '陈会计 - 财务部',
+                '4': '孙主管 - 人事部'
+            };
+            return employees[employeeId] || '-';
+        }
+
+        // 表单提交
+        document.getElementById('visitorForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (validateCurrentStep()) {
+                // 显示加载状态
+                const submitBtn = document.getElementById('submitBtn');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>提交中...';
+                submitBtn.disabled = true;
+                
+                // 模拟提交
+                setTimeout(() => {
+                    showMessage('访客申请提交成功！', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'visitor-list.html';
+                    }, 2000);
+                }, 2000);
+            }
+        });
+
+        function saveDraft() {
+            showMessage('草稿已保存', 'success');
+        }
+
+        function removeFile(index) {
+            // 移除文件的逻辑
+            showMessage('文件已移除', 'info');
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+            
+            messageDiv.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+            messageDiv.textContent = message;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期为今天
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('visitDate').value = today;
+            
+            // 设置默认时间
+            document.getElementById('startTime').value = '09:00';
+            document.getElementById('endTime').value = '17:00';
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 访客审批</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .approval-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #f59e0b;
+        }
+        .approval-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .approval-card.approved {
+            border-left-color: #10b981;
+        }
+        .approval-card.rejected {
+            border-left-color: #ef4444;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-approved {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-rejected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .priority-high {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        }
+        .priority-medium {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        }
+        .priority-low {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle text-orange-600 text-xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">访客审批</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500">待审批:</span>
+                        <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">8</span>
+                    </div>
+                    <button onclick="window.location.href='dashboard.html'" 
+                            class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        返回仪表板
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 筛选和统计区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            <!-- 统计卡片 -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-orange-100 rounded-lg">
+                        <i class="fas fa-clock text-orange-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">待审批</p>
+                        <p class="text-2xl font-bold text-gray-900">8</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-lg">
+                        <i class="fas fa-check text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">今日已审批</p>
+                        <p class="text-2xl font-bold text-gray-900">15</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-lg">
+                        <i class="fas fa-times text-red-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">今日拒绝</p>
+                        <p class="text-2xl font-bold text-gray-900">2</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-lg">
+                        <i class="fas fa-percentage text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">通过率</p>
+                        <p class="text-2xl font-bold text-gray-900">88%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 筛选器 -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">全部状态</option>
+                    <option value="pending">待审批</option>
+                    <option value="approved">已通过</option>
+                    <option value="rejected">已拒绝</option>
+                </select>
+
+                <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">全部优先级</option>
+                    <option value="high">高优先级</option>
+                    <option value="medium">中优先级</option>
+                    <option value="low">低优先级</option>
+                </select>
+
+                <input type="date" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                <div class="flex space-x-2">
+                    <button class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-search mr-2"></i>
+                        筛选
+                    </button>
+                    <button class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 批量操作 -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="selectAll" class="rounded border-gray-300">
+                        <span class="ml-2 text-sm text-gray-600">全选</span>
+                    </label>
+                    <span class="text-sm text-gray-500">已选择 <span id="selectedCount">0</span> 项</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="batchApprove" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50" disabled>
+                        <i class="fas fa-check mr-2"></i>
+                        批量通过
+                    </button>
+                    <button id="batchReject" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50" disabled>
+                        <i class="fas fa-times mr-2"></i>
+                        批量拒绝
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 审批列表 -->
+        <div class="space-y-4">
+            <!-- 审批项 1 - 高优先级 -->
+            <div class="approval-card bg-white rounded-lg shadow-sm p-6 priority-high">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start space-x-4">
+                        <input type="checkbox" class="approval-checkbox mt-2 rounded border-gray-300">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face" 
+                             alt="访客头像" class="w-15 h-15 rounded-full">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">李明</h3>
+                                <span class="status-badge status-pending">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    待审批
+                                </span>
+                                <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    <i class="fas fa-exclamation mr-1"></i>
+                                    高优先级
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                                <div>
+                                    <span class="font-medium">联系方式：</span>
+                                    <div>13800138001</div>
+                                    <div>li.ming@example.com</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">访问信息：</span>
+                                    <div>被访问人：王工程师 (技术部)</div>
+                                    <div>访问时间：2024-01-15 09:00-17:00</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">申请时间：</span>
+                                    <div>2024-01-14 16:30</div>
+                                    <div class="text-orange-600">距离访问还有 14小时</div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <span class="font-medium text-gray-700">访问目的：</span>
+                                <p class="text-gray-600 mt-1">紧急技术问题讨论，需要立即处理系统故障相关事宜。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-2 ml-4">
+                        <button onclick="approveVisitor(1)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                            <i class="fas fa-check mr-2"></i>
+                            通过
+                        </button>
+                        <button onclick="rejectVisitor(1)" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">
+                            <i class="fas fa-times mr-2"></i>
+                            拒绝
+                        </button>
+                        <button onclick="viewDetails(1)" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                            <i class="fas fa-eye mr-2"></i>
+                            详情
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 审批项 2 - 中优先级 -->
+            <div class="approval-card bg-white rounded-lg shadow-sm p-6 priority-medium">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start space-x-4">
+                        <input type="checkbox" class="approval-checkbox mt-2 rounded border-gray-300">
+                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=60&h=60&fit=crop&crop=face" 
+                             alt="访客头像" class="w-15 h-15 rounded-full">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">张丽</h3>
+                                <span class="status-badge status-pending">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    待审批
+                                </span>
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    <i class="fas fa-minus mr-1"></i>
+                                    中优先级
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                                <div>
+                                    <span class="font-medium">联系方式：</span>
+                                    <div>13900139002</div>
+                                    <div>zhang.li@example.com</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">访问信息：</span>
+                                    <div>被访问人：刘经理 (市场部)</div>
+                                    <div>访问时间：2024-01-16 14:00-16:00</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">申请时间：</span>
+                                    <div>2024-01-14 10:15</div>
+                                    <div class="text-blue-600">距离访问还有 1天</div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <span class="font-medium text-gray-700">访问目的：</span>
+                                <p class="text-gray-600 mt-1">商务合作洽谈，讨论新产品推广合作方案。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-2 ml-4">
+                        <button onclick="approveVisitor(2)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                            <i class="fas fa-check mr-2"></i>
+                            通过
+                        </button>
+                        <button onclick="rejectVisitor(2)" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">
+                            <i class="fas fa-times mr-2"></i>
+                            拒绝
+                        </button>
+                        <button onclick="viewDetails(2)" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                            <i class="fas fa-eye mr-2"></i>
+                            详情
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 审批项 3 - 低优先级 -->
+            <div class="approval-card bg-white rounded-lg shadow-sm p-6 priority-low">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start space-x-4">
+                        <input type="checkbox" class="approval-checkbox mt-2 rounded border-gray-300">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=60&fit=crop&crop=face" 
+                             alt="访客头像" class="w-15 h-15 rounded-full">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">王强</h3>
+                                <span class="status-badge status-pending">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    待审批
+                                </span>
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    <i class="fas fa-check mr-1"></i>
+                                    低优先级
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                                <div>
+                                    <span class="font-medium">联系方式：</span>
+                                    <div>13700137003</div>
+                                    <div>wang.qiang@example.com</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">访问信息：</span>
+                                    <div>被访问人：陈会计 (财务部)</div>
+                                    <div>访问时间：2024-01-18 10:00-12:00</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">申请时间：</span>
+                                    <div>2024-01-14 09:00</div>
+                                    <div class="text-green-600">距离访问还有 3天</div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <span class="font-medium text-gray-700">访问目的：</span>
+                                <p class="text-gray-600 mt-1">财务对账，核实合同款项支付情况。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-2 ml-4">
+                        <button onclick="approveVisitor(3)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                            <i class="fas fa-check mr-2"></i>
+                            通过
+                        </button>
+                        <button onclick="rejectVisitor(3)" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">
+                            <i class="fas fa-times mr-2"></i>
+                            拒绝
+                        </button>
+                        <button onclick="viewDetails(3)" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                            <i class="fas fa-eye mr-2"></i>
+                            详情
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 已处理的审批项示例 -->
+            <div class="approval-card approved bg-white rounded-lg shadow-sm p-6 opacity-75">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start space-x-4">
+                        <input type="checkbox" class="approval-checkbox mt-2 rounded border-gray-300" disabled>
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&h=60&fit=crop&crop=face" 
+                             alt="访客头像" class="w-15 h-15 rounded-full">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">赵敏</h3>
+                                <span class="status-badge status-approved">
+                                    <i class="fas fa-check mr-1"></i>
+                                    已通过
+                                </span>
+                                <span class="text-xs text-gray-500">审批人：张管理员</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                                <div>
+                                    <span class="font-medium">联系方式：</span>
+                                    <div>13600136004</div>
+                                    <div>zhao.min@example.com</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">访问信息：</span>
+                                    <div>被访问人：孙主管 (人事部)</div>
+                                    <div>访问时间：2024-01-15 14:00-16:00</div>
+                                </div>
+                                <div>
+                                    <span class="font-medium">审批时间：</span>
+                                    <div>2024-01-14 17:30</div>
+                                    <div class="text-green-600">已生成访客码</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-2 ml-4">
+                        <button class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm" disabled>
+                            <i class="fas fa-check mr-2"></i>
+                            已处理
+                        </button>
+                        <button onclick="viewDetails(4)" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                            <i class="fas fa-eye mr-2"></i>
+                            详情
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="mt-8 flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                显示 1-4 条，共 25 条记录
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
+                    上一页
+                </button>
+                <button class="px-3 py-1 text-sm bg-blue-600 text-white rounded">1</button>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">2</button>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">3</button>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                    下一页
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审批详情模态框 -->
+    <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">访客审批详情</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6" id="modalContent">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 拒绝原因模态框 -->
+    <div id="rejectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">拒绝原因</h3>
+                <button onclick="closeRejectModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="rejectForm">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">请选择拒绝原因：</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="rejectReason" value="info_incomplete" class="mr-2">
+                                <span class="text-sm">信息不完整</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="rejectReason" value="time_conflict" class="mr-2">
+                                <span class="text-sm">时间冲突</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="rejectReason" value="security_concern" class="mr-2">
+                                <span class="text-sm">安全考虑</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="rejectReason" value="other" class="mr-2">
+                                <span class="text-sm">其他原因</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">详细说明：</label>
+                        <textarea id="rejectNote" rows="3" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                  placeholder="请输入拒绝的详细原因..."></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeRejectModal()" 
+                                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            取消
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            确认拒绝
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentRejectId = null;
+
+        // 全选功能
+        document.getElementById('selectAll').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.approval-checkbox:not([disabled])');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBatchButtons();
+        });
+
+        // 单项选择
+        document.querySelectorAll('.approval-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', updateBatchButtons);
+        });
+
+        function updateBatchButtons() {
+            const checkedBoxes = document.querySelectorAll('.approval-checkbox:checked:not([disabled])');
+            const batchApprove = document.getElementById('batchApprove');
+            const batchReject = document.getElementById('batchReject');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            selectedCount.textContent = checkedBoxes.length;
+            
+            if (checkedBoxes.length > 0) {
+                batchApprove.disabled = false;
+                batchReject.disabled = false;
+            } else {
+                batchApprove.disabled = true;
+                batchReject.disabled = true;
+            }
+        }
+
+        // 审批操作
+        function approveVisitor(id) {
+            if (confirm('确认通过该访客申请？')) {
+                showMessage('访客申请已通过！', 'success');
+                // 更新UI状态
+                updateApprovalStatus(id, 'approved');
+            }
+        }
+
+        function rejectVisitor(id) {
+            currentRejectId = id;
+            document.getElementById('rejectModal').classList.remove('hidden');
+        }
+
+        function viewDetails(id) {
+            // 模拟获取详细信息
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4">访客信息</h4>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-4">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face" 
+                                     alt="访客头像" class="w-20 h-20 rounded-full">
+                                <div>
+                                    <h5 class="text-xl font-semibold">李明</h5>
+                                    <p class="text-gray-600">软件工程师 | ABC科技公司</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div><span class="font-medium">手机：</span>13800138001</div>
+                                <div><span class="font-medium">邮箱：</span>li.ming@example.com</div>
+                                <div><span class="font-medium">身份证：</span>110101199001011234</div>
+                                <div><span class="font-medium">公司：</span>ABC科技公司</div>
+                            </div>
+                        </div>
+                        
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4 mt-8">访问信息</h4>
+                        <div class="space-y-3 text-sm">
+                            <div><span class="font-medium">被访问人：</span>王工程师 (技术部)</div>
+                            <div><span class="font-medium">访问日期：</span>2024-01-15</div>
+                            <div><span class="font-medium">访问时间：</span>09:00 - 17:00</div>
+                            <div><span class="font-medium">访问地点：</span>技术部会议室A</div>
+                            <div><span class="font-medium">申请时间：</span>2024-01-14 16:30</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4">访问目的</h4>
+                        <p class="text-gray-600 mb-6">紧急技术问题讨论，需要立即处理系统故障相关事宜。涉及核心业务系统的性能优化和安全漏洞修复。</p>
+                        
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4">附件文档</h4>
+                        <div class="space-y-2">
+                            <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <i class="fas fa-file-pdf text-red-500 mr-3"></i>
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium">技术方案书.pdf</div>
+                                    <div class="text-xs text-gray-500">2.3 MB</div>
+                                </div>
+                                <button class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <i class="fas fa-file-word text-blue-500 mr-3"></i>
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium">合作协议草案.docx</div>
+                                    <div class="text-xs text-gray-500">1.8 MB</div>
+                                </div>
+                                <button class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4 mt-6">风险评估</h4>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-exclamation-triangle text-yellow-500 mt-1 mr-3"></i>
+                                <div class="text-sm">
+                                    <p class="font-medium text-yellow-800">中等风险</p>
+                                    <p class="text-yellow-700">访客来自外部公司，需要访问技术部门，建议安排专人陪同。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-6 border-t mt-8">
+                    <button onclick="closeModal()" class="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        关闭
+                    </button>
+                    <button onclick="rejectVisitor(${id})" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        <i class="fas fa-times mr-2"></i>
+                        拒绝
+                    </button>
+                    <button onclick="approveVisitor(${id})" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        <i class="fas fa-check mr-2"></i>
+                        通过
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        // 拒绝表单提交
+        document.getElementById('rejectForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const reason = document.querySelector('input[name="rejectReason"]:checked');
+            const note = document.getElementById('rejectNote').value;
+            
+            if (!reason) {
+                showMessage('请选择拒绝原因', 'error');
+                return;
+            }
+            
+            showMessage('访客申请已拒绝！', 'info');
+            updateApprovalStatus(currentRejectId, 'rejected');
+            closeRejectModal();
+        });
+
+        function updateApprovalStatus(id, status) {
+            // 这里应该更新对应卡片的状态
+            // 简化处理，实际应该根据ID找到对应卡片并更新
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('rejectModal').classList.add('hidden');
+            currentRejectId = null;
+            document.getElementById('rejectForm').reset();
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+            
+            messageDiv.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+            messageDiv.textContent = message;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // 批量操作
+        document.getElementById('batchApprove').addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.approval-checkbox:checked:not([disabled])');
+            if (checkedBoxes.length > 0 && confirm(`确认批量通过 ${checkedBoxes.length} 个访客申请？`)) {
+                showMessage(`已批量通过 ${checkedBoxes.length} 个访客申请`, 'success');
+                // 更新UI状态
+                checkedBoxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                updateBatchButtons();
+            }
+        });
+
+        document.getElementById('batchReject').addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.approval-checkbox:checked:not([disabled])');
+            if (checkedBoxes.length > 0 && confirm(`确认批量拒绝 ${checkedBoxes.length} 个访客申请？`)) {
+                showMessage(`已批量拒绝 ${checkedBoxes.length} 个访客申请`, 'info');
+                // 更新UI状态
+                checkedBoxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                updateBatchButtons();
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        document.getElementById('rejectModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRejectModal();
+            }
+        });
+    </script>
+</body>
+</html> 

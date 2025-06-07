@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - UI原型展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .prototype-frame {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+        .prototype-frame:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .prototype-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 16px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .prototype-content {
+            height: 600px;
+            overflow: hidden;
+        }
+        .prototype-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            transform: scale(0.8);
+            transform-origin: top left;
+            width: 125%;
+            height: 125%;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 头部导航 -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-users text-blue-600 text-2xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">访客管理系统 UI原型</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-500">版本 v1.0.0</span>
+                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                        生产就绪
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 系统概述 -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">系统概述</h2>
+            <div class="bg-white rounded-lg shadow p-6">
+                <p class="text-gray-600 mb-4">
+                    访客管理系统是一个现代化的数字化访客管理解决方案，基于Python FastAPI和Clean Architecture架构，
+                    支持从访客预约、审批、签到到签出的全生命周期管理。
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600">18</div>
+                        <div class="text-sm text-gray-500">API端点</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600">6</div>
+                        <div class="text-sm text-gray-500">核心模块</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-600">100%</div>
+                        <div class="text-sm text-gray-500">功能完成度</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-orange-600">99.9%</div>
+                        <div class="text-sm text-gray-500">系统可用性</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 界面原型展示 -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">界面原型展示</h2>
+            
+            <!-- 核心功能界面 -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-desktop mr-2 text-blue-600"></i>
+                    核心功能界面
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 登录界面 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            用户登录
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="login.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 仪表板 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-tachometer-alt mr-2"></i>
+                            系统仪表板
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="dashboard.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 访客列表 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-users mr-2"></i>
+                            访客列表
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="visitor-list.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 新增访客 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-user-plus mr-2"></i>
+                            新增访客
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="visitor-create.html"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 管理功能界面 -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-cogs mr-2 text-green-600"></i>
+                    管理功能界面
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 访客审批 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            访客审批
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="visitor-approval.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 员工管理 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-id-badge mr-2"></i>
+                            员工管理
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="employee-list.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 部门管理 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-building mr-2"></i>
+                            部门管理
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="department-list.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 系统设置 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-cog mr-2"></i>
+                            系统设置
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="settings.html"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 移动端界面 -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-mobile-alt mr-2 text-purple-600"></i>
+                    移动端界面
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- APP端完整展示 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fab fa-apple mr-2"></i>
+                            APP端完整展示
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="app-showcase.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 小程序端完整展示 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fab fa-weixin mr-2"></i>
+                            小程序端完整展示
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="miniprogram-showcase.html"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 移动端单页界面 -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-mobile-alt mr-2 text-indigo-600"></i>
+                    移动端单页界面
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- 移动端登录 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-mobile-alt mr-2"></i>
+                            移动端登录
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="mobile-login.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 访客签到 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-qrcode mr-2"></i>
+                            访客签到
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="visitor-checkin.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- 访客详情 -->
+                    <div class="prototype-frame">
+                        <div class="prototype-title">
+                            <i class="fas fa-user-circle mr-2"></i>
+                            访客详情
+                        </div>
+                        <div class="prototype-content">
+                            <iframe src="visitor-detail.html"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 技术特性 -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">技术特性</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-layer-group text-blue-600 text-2xl mr-3"></i>
+                        <h3 class="text-lg font-semibold">Clean Architecture</h3>
+                    </div>
+                    <p class="text-gray-600">采用四层架构设计，确保代码的可维护性和可测试性</p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-shield-alt text-green-600 text-2xl mr-3"></i>
+                        <h3 class="text-lg font-semibold">安全可靠</h3>
+                    </div>
+                    <p class="text-gray-600">多层次安全防护，JWT认证，权限控制，数据加密</p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-rocket text-purple-600 text-2xl mr-3"></i>
+                        <h3 class="text-lg font-semibold">高性能</h3>
+                    </div>
+                    <p class="text-gray-600">异步处理，Redis缓存，数据库优化，支持高并发</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="bg-blue-50 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-blue-900 mb-3">
+                <i class="fas fa-info-circle mr-2"></i>
+                使用说明
+            </h3>
+            <div class="text-blue-800 space-y-2">
+                <p>• 点击任意界面原型可查看详细设计</p>
+                <p>• 所有界面均采用响应式设计，支持桌面端和移动端</p>
+                <p>• 界面设计遵循现代UI/UX设计原则，注重用户体验</p>
+                <p>• 支持暗色主题和多语言切换</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    © 2024 访客管理系统. 基于 FastAPI + Clean Architecture
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-gray-500">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-book"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-envelope"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 添加一些交互效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 为原型框架添加点击事件
+            const frames = document.querySelectorAll('.prototype-frame');
+            frames.forEach(frame => {
+                frame.addEventListener('click', function() {
+                    const iframe = this.querySelector('iframe');
+                    if (iframe) {
+                        // 在新窗口中打开完整页面
+                        window.open(iframe.src, '_blank');
+                    }
+                });
+            });
+
+            // 添加键盘导航支持
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    // ESC键关闭任何打开的模态框
+                    console.log('ESC pressed');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

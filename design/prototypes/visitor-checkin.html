@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 访客签到</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* iPhone 14 Pro 样式模拟 */
+        .iphone-frame {
+            width: 393px;
+            height: 852px;
+            background: #000;
+            border-radius: 47px;
+            padding: 8px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .iphone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 39px;
+            overflow: hidden;
+            position: relative;
+        }
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+        .status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 47px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 30px 8px;
+            color: #1f2937;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 5;
+        }
+        .home-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 134px;
+            height: 5px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        .app-content {
+            padding: 60px 24px 40px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .qr-scanner {
+            width: 280px;
+            height: 280px;
+            border: 3px solid #3b82f6;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .scanner-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(280px); }
+        }
+        .corner-frame {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #3b82f6;
+        }
+        .corner-frame.top-left {
+            top: 10px;
+            left: 10px;
+            border-right: none;
+            border-bottom: none;
+        }
+        .corner-frame.top-right {
+            top: 10px;
+            right: 10px;
+            border-left: none;
+            border-bottom: none;
+        }
+        .corner-frame.bottom-left {
+            bottom: 10px;
+            left: 10px;
+            border-right: none;
+            border-top: none;
+        }
+        .corner-frame.bottom-right {
+            bottom: 10px;
+            right: 10px;
+            border-left: none;
+            border-top: none;
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <!-- iPhone 框架 -->
+    <div class="iphone-frame">
+        <div class="iphone-screen">
+            <!-- 刘海 -->
+            <div class="notch"></div>
+            
+            <!-- 状态栏 -->
+            <div class="status-bar">
+                <div>9:41</div>
+                <div class="flex items-center space-x-1">
+                    <i class="fas fa-signal text-xs"></i>
+                    <i class="fas fa-wifi text-xs"></i>
+                    <i class="fas fa-battery-three-quarters text-xs"></i>
+                </div>
+            </div>
+
+            <!-- 主要内容 -->
+            <div class="app-content">
+                <!-- 头部 -->
+                <div class="text-center mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <button class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center">
+                            <i class="fas fa-arrow-left text-gray-600"></i>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-900">访客签到</h1>
+                        <button class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center">
+                            <i class="fas fa-question-circle text-gray-600"></i>
+                        </button>
+                    </div>
+                    <p class="text-gray-600 text-sm">请扫描您的访客二维码进行签到</p>
+                </div>
+
+                <!-- 二维码扫描区域 -->
+                <div class="flex justify-center mb-8">
+                    <div class="qr-scanner">
+                        <div class="scanner-line"></div>
+                        <div class="corner-frame top-left"></div>
+                        <div class="corner-frame top-right"></div>
+                        <div class="corner-frame bottom-left"></div>
+                        <div class="corner-frame bottom-right"></div>
+                        
+                        <!-- 扫描提示 -->
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="text-center">
+                                <i class="fas fa-qrcode text-4xl text-blue-600 mb-2 pulse-animation"></i>
+                                <p class="text-sm text-gray-600">将二维码放入框内</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="space-y-4 mb-8">
+                    <button id="manualCheckinBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg">
+                        <i class="fas fa-keyboard mr-2"></i>
+                        手动输入签到码
+                    </button>
+                    
+                    <button id="emergencyBtn" class="w-full bg-orange-500 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        紧急访客登记
+                    </button>
+                </div>
+
+                <!-- 今日访客统计 -->
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">今日访客统计</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-blue-600">42</div>
+                            <div class="text-xs text-gray-500">总访客</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-600">28</div>
+                            <div class="text-xs text-gray-500">已签到</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-orange-600">8</div>
+                            <div class="text-xs text-gray-500">待审批</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Home 指示器 -->
+            <div class="home-indicator"></div>
+        </div>
+    </div>
+
+    <!-- 手动输入模态框 -->
+    <div id="manualModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 hidden">
+        <div class="bg-white rounded-t-3xl w-full max-w-md slide-up">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">手动签到</h3>
+                    <button onclick="closeModal('manualModal')" class="text-gray-400">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="manualCheckinForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">签到码</label>
+                        <input type="text" id="checkinCode" placeholder="请输入6位签到码" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl tracking-widest">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">访客姓名</label>
+                        <input type="text" id="visitorName" placeholder="请输入您的姓名" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">手机号码</label>
+                        <input type="tel" id="visitorPhone" placeholder="请输入手机号码" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">
+                        确认签到
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 紧急登记模态框 -->
+    <div id="emergencyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 hidden">
+        <div class="bg-white rounded-t-3xl w-full max-w-md slide-up">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">紧急访客登记</h3>
+                    <button onclick="closeModal('emergencyModal')" class="text-gray-400">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-triangle text-orange-500 mt-1 mr-3"></i>
+                        <div class="text-sm text-orange-800">
+                            <p class="font-medium">紧急访客说明：</p>
+                            <p>适用于未预约但需要紧急访问的情况，需要前台人员协助处理。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="emergencyForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">访客姓名 *</label>
+                        <input type="text" id="emergencyName" placeholder="请输入您的姓名" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">手机号码 *</label>
+                        <input type="tel" id="emergencyPhone" placeholder="请输入手机号码" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">被访问人 *</label>
+                        <input type="text" id="emergencyEmployee" placeholder="请输入被访问人姓名" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">访问事由 *</label>
+                        <textarea id="emergencyReason" placeholder="请简述访问事由" required rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold">
+                        提交紧急登记
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 签到成功模态框 -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-3xl p-8 mx-4 text-center max-w-sm w-full">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check text-3xl text-green-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">签到成功！</h3>
+            <p class="text-gray-600 mb-6">欢迎您的到访，请前往指定地点</p>
+            
+            <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">访客：</span>
+                        <span class="font-medium">李明</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">被访问人：</span>
+                        <span class="font-medium">王工程师</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">部门：</span>
+                        <span class="font-medium">技术部</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">签到时间：</span>
+                        <span class="font-medium">09:30</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="closeModal('successModal')" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">
+                确定
+            </button>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 flex items-center space-x-3 mx-4">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span class="text-gray-700">处理中...</span>
+        </div>
+    </div>
+
+    <script>
+        // 模拟二维码扫描
+        let scanningActive = true;
+        
+        function simulateQRScan() {
+            if (scanningActive) {
+                setTimeout(() => {
+                    if (Math.random() > 0.7 && scanningActive) {
+                        // 模拟扫描成功
+                        scanningActive = false;
+                        showLoading();
+                        
+                        setTimeout(() => {
+                            hideLoading();
+                            showSuccessModal();
+                        }, 2000);
+                    } else {
+                        simulateQRScan();
+                    }
+                }, 3000);
+            }
+        }
+        
+        // 启动模拟扫描
+        simulateQRScan();
+
+        // 手动签到
+        document.getElementById('manualCheckinBtn').addEventListener('click', function() {
+            document.getElementById('manualModal').classList.remove('hidden');
+        });
+
+        // 紧急登记
+        document.getElementById('emergencyBtn').addEventListener('click', function() {
+            document.getElementById('emergencyModal').classList.remove('hidden');
+        });
+
+        // 手动签到表单提交
+        document.getElementById('manualCheckinForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const code = document.getElementById('checkinCode').value;
+            const name = document.getElementById('visitorName').value;
+            const phone = document.getElementById('visitorPhone').value;
+            
+            if (!code || !name || !phone) {
+                showMobileMessage('请填写完整信息', 'error');
+                return;
+            }
+            
+            if (code.length !== 6) {
+                showMobileMessage('签到码必须是6位数字', 'error');
+                return;
+            }
+            
+            closeModal('manualModal');
+            showLoading();
+            
+            setTimeout(() => {
+                hideLoading();
+                showSuccessModal();
+            }, 2000);
+        });
+
+        // 紧急登记表单提交
+        document.getElementById('emergencyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('emergencyName').value;
+            const phone = document.getElementById('emergencyPhone').value;
+            const employee = document.getElementById('emergencyEmployee').value;
+            const reason = document.getElementById('emergencyReason').value;
+            
+            if (!name || !phone || !employee || !reason) {
+                showMobileMessage('请填写完整信息', 'error');
+                return;
+            }
+            
+            closeModal('emergencyModal');
+            showLoading();
+            
+            setTimeout(() => {
+                hideLoading();
+                showMobileMessage('紧急登记已提交，请等待前台处理', 'success');
+            }, 2000);
+        });
+
+        // 模态框控制
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function showSuccessModal() {
+            document.getElementById('successModal').classList.remove('hidden');
+            
+            // 添加触觉反馈
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // 移动端消息提示
+        function showMobileMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+            
+            messageDiv.className = `fixed top-20 left-1/2 transform -translate-x-1/2 ${colors[type]} text-white px-6 py-3 rounded-2xl shadow-lg z-50`;
+            messageDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('[id$="Modal"]').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal(this.id);
+                }
+            });
+        });
+
+        // 触摸反馈
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('touchstart', function() {
+                this.style.transform = 'scale(0.95)';
+                if (navigator.vibrate) {
+                    navigator.vibrate(10);
+                }
+            });
+            
+            button.addEventListener('touchend', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // 签到码输入格式化
+        document.getElementById('checkinCode').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 6) {
+                value = value.slice(0, 6);
+            }
+            e.target.value = value;
+        });
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 更新状态栏时间
+            function updateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                document.querySelector('.status-bar div:first-child').textContent = timeString;
+            }
+            
+            updateTime();
+            setInterval(updateTime, 60000);
+            
+            // 添加页面加载动画
+            const content = document.querySelector('.app-content');
+            content.style.opacity = '0';
+            content.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                content.style.transition = 'all 0.5s ease-out';
+                content.style.opacity = '1';
+                content.style.transform = 'translateY(0)';
+            }, 300);
+        });
+
+        // 防止页面缩放
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html> 

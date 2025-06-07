@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 仪表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar-transition {
+            transition: all 0.3s ease-in-out;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .stat-card.blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .stat-card.green {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        .stat-card.orange {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 侧边栏 -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg sidebar-transition">
+        <!-- Logo -->
+        <div class="flex items-center justify-center h-16 px-4 gradient-bg">
+            <i class="fas fa-users text-white text-2xl mr-3"></i>
+            <span class="text-white font-bold text-lg">访客管理系统</span>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="mt-8">
+            <div class="px-4 space-y-2">
+                <!-- 仪表板 -->
+                <a href="#" class="flex items-center px-4 py-3 text-blue-600 bg-blue-50 rounded-lg">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    <span>仪表板</span>
+                </a>
+
+                <!-- 访客管理 -->
+                <div class="space-y-1">
+                    <button class="flex items-center justify-between w-full px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-users mr-3"></i>
+                            <span>访客管理</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div class="ml-6 space-y-1">
+                        <a href="visitor-list.html" class="block px-4 py-2 text-sm text-gray-600 hover:text-blue-600">访客列表</a>
+                        <a href="visitor-create.html" class="block px-4 py-2 text-sm text-gray-600 hover:text-blue-600">新增访客</a>
+                        <a href="visitor-approval.html" class="block px-4 py-2 text-sm text-gray-600 hover:text-blue-600">访客审批</a>
+                    </div>
+                </div>
+
+                <!-- 员工管理 -->
+                <a href="employee-list.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-id-badge mr-3"></i>
+                    <span>员工管理</span>
+                </a>
+
+                <!-- 部门管理 -->
+                <a href="department-list.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-building mr-3"></i>
+                    <span>部门管理</span>
+                </a>
+
+                <!-- 报表统计 -->
+                <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-chart-bar mr-3"></i>
+                    <span>报表统计</span>
+                </a>
+
+                <!-- 系统设置 -->
+                <a href="settings.html" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-cog mr-3"></i>
+                    <span>系统设置</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- 用户信息 -->
+        <div class="absolute bottom-0 w-full p-4">
+            <div class="flex items-center p-3 bg-gray-100 rounded-lg">
+                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                     alt="用户头像" class="w-10 h-10 rounded-full mr-3">
+                <div class="flex-1">
+                    <div class="text-sm font-medium text-gray-900">张管理员</div>
+                    <div class="text-xs text-gray-500">系统管理员</div>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="ml-64">
+        <!-- 顶部导航栏 -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div class="flex items-center">
+                    <button id="sidebarToggle" class="text-gray-500 hover:text-gray-700 lg:hidden">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="text-2xl font-bold text-gray-900 ml-4">仪表板</h1>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <!-- 搜索框 -->
+                    <div class="relative">
+                        <input type="text" placeholder="搜索访客..." 
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+
+                    <!-- 通知 -->
+                    <button class="relative text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                    </button>
+
+                    <!-- 用户菜单 -->
+                    <div class="relative">
+                        <button class="flex items-center text-gray-700 hover:text-gray-900">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                                 alt="用户头像" class="w-8 h-8 rounded-full mr-2">
+                            <span class="text-sm font-medium">张管理员</span>
+                            <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容 -->
+        <main class="p-6">
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- 今日访客 -->
+                <div class="stat-card blue text-white rounded-xl p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-blue-100 text-sm">今日访客</p>
+                            <p class="text-3xl font-bold">42</p>
+                            <p class="text-blue-100 text-xs mt-1">
+                                <i class="fas fa-arrow-up mr-1"></i>
+                                比昨日 +12%
+                            </p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-full p-3">
+                            <i class="fas fa-user-friends text-2xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待审批 -->
+                <div class="stat-card orange text-white rounded-xl p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-orange-100 text-sm">待审批</p>
+                            <p class="text-3xl font-bold">8</p>
+                            <p class="text-orange-100 text-xs mt-1">
+                                <i class="fas fa-clock mr-1"></i>
+                                需要处理
+                            </p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-full p-3">
+                            <i class="fas fa-hourglass-half text-2xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 已签到 -->
+                <div class="stat-card green text-white rounded-xl p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-green-100 text-sm">已签到</p>
+                            <p class="text-3xl font-bold">28</p>
+                            <p class="text-green-100 text-xs mt-1">
+                                <i class="fas fa-check mr-1"></i>
+                                在场访客
+                            </p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-full p-3">
+                            <i class="fas fa-check-circle text-2xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 本月访客 -->
+                <div class="stat-card text-white rounded-xl p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-pink-100 text-sm">本月访客</p>
+                            <p class="text-3xl font-bold">1,247</p>
+                            <p class="text-pink-100 text-xs mt-1">
+                                <i class="fas fa-calendar mr-1"></i>
+                                累计访客
+                            </p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-full p-3">
+                            <i class="fas fa-chart-line text-2xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图表和列表 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- 访客趋势图 -->
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">访客趋势</h3>
+                        <select class="text-sm border border-gray-300 rounded px-3 py-1">
+                            <option>最近7天</option>
+                            <option>最近30天</option>
+                            <option>最近90天</option>
+                        </select>
+                    </div>
+                    <div style="position: relative; height: 200px;">
+                        <canvas id="visitorTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 部门访客分布 -->
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">部门访客分布</h3>
+                    <div style="position: relative; height: 200px;">
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近访客和待办事项 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 最近访客 -->
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">最近访客</h3>
+                        <a href="visitor-list.html" class="text-blue-600 hover:text-blue-800 text-sm">查看全部</a>
+                    </div>
+                    <div class="space-y-4">
+                        <!-- 访客项 -->
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-10 h-10 rounded-full mr-3">
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900">李先生</div>
+                                <div class="text-xs text-gray-500">来访 技术部 - 王工程师</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">10:30</div>
+                                <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">已签到</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-10 h-10 rounded-full mr-3">
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900">张女士</div>
+                                <div class="text-xs text-gray-500">来访 市场部 - 刘经理</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">09:45</div>
+                                <span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">待审批</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-10 h-10 rounded-full mr-3">
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900">王先生</div>
+                                <div class="text-xs text-gray-500">来访 财务部 - 陈会计</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">09:15</div>
+                                <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">已签出</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待办事项 -->
+                <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">待办事项</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center p-3 border border-orange-200 bg-orange-50 rounded-lg">
+                            <i class="fas fa-exclamation-triangle text-orange-500 mr-3"></i>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900">8个访客申请待审批</div>
+                                <div class="text-xs text-gray-500">需要及时处理</div>
+                            </div>
+                            <button class="text-orange-600 hover:text-orange-800 text-sm">处理</button>
+                        </div>
+
+                        <div class="flex items-center p-3 border border-blue-200 bg-blue-50 rounded-lg">
+                            <i class="fas fa-info-circle text-blue-500 mr-3"></i>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900">系统更新提醒</div>
+                                <div class="text-xs text-gray-500">新版本 v1.1.0 可用</div>
+                            </div>
+                            <button class="text-blue-600 hover:text-blue-800 text-sm">查看</button>
+                        </div>
+
+                        <div class="flex items-center p-3 border border-green-200 bg-green-50 rounded-lg">
+                            <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900">数据备份完成</div>
+                                <div class="text-xs text-gray-500">今日 03:00 自动备份</div>
+                            </div>
+                            <button class="text-green-600 hover:text-green-800 text-sm">详情</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 初始化图表
+        document.addEventListener('DOMContentLoaded', function() {
+            // 访客趋势图
+            const trendCtx = document.getElementById('visitorTrendChart').getContext('2d');
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                    datasets: [{
+                        label: '访客数量',
+                        data: [32, 45, 38, 52, 49, 35, 28],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 部门分布图
+            const deptCtx = document.getElementById('departmentChart').getContext('2d');
+            new Chart(deptCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['技术部', '市场部', '财务部', '人事部', '其他'],
+                    datasets: [{
+                        data: [35, 25, 20, 15, 5],
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#4facfe',
+                            '#43e97b'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        });
+
+        // 侧边栏切换
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        // 实时更新时间
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('zh-CN');
+            // 可以在这里更新页面上的时间显示
+        }
+
+        setInterval(updateTime, 1000);
+
+        // 模拟实时数据更新
+        function updateStats() {
+            // 这里可以添加实时数据更新逻辑
+            // 例如通过WebSocket或定期API调用更新统计数据
+        }
+
+        setInterval(updateStats, 30000); // 每30秒更新一次
+    </script>
+</body>
+</html> 

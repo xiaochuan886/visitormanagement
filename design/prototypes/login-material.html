@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - Material Design风格登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .material-input {
+            position: relative;
+            margin: 24px 0;
+        }
+        .material-input input {
+            width: 100%;
+            padding: 12px 0 8px 0;
+            border: none;
+            border-bottom: 2px solid #e0e0e0;
+            background: transparent;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        .material-input input:focus {
+            border-bottom-color: #1976d2;
+        }
+        .material-input label {
+            position: absolute;
+            top: 12px;
+            left: 0;
+            font-size: 16px;
+            color: #757575;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .material-input input:focus + label,
+        .material-input input:not(:placeholder-shown) + label {
+            top: -8px;
+            font-size: 12px;
+            color: #1976d2;
+        }
+        .material-button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .material-button:hover {
+            background: #1565c0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .material-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+        }
+        .material-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #ff5722;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        .material-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+        .ripple::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        .ripple:active::before {
+            width: 300px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <!-- Material Design风格登录界面 -->
+    <div class="material-card">
+        <!-- 头部 -->
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-users text-white text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-normal text-gray-800 mb-2">访客管理系统</h1>
+            <p class="text-gray-600 text-sm">Material Design 风格</p>
+        </div>
+
+        <!-- 登录表单 -->
+        <form>
+            <div class="material-input">
+                <input type="text" id="username" placeholder=" " required>
+                <label for="username">用户名</label>
+            </div>
+
+            <div class="material-input">
+                <input type="password" id="password" placeholder=" " required>
+                <label for="password">密码</label>
+            </div>
+
+            <!-- 选项 -->
+            <div class="flex items-center justify-between mb-6">
+                <label class="flex items-center text-sm text-gray-600">
+                    <input type="checkbox" class="mr-2 accent-blue-600">
+                    记住我
+                </label>
+                <a href="#" class="text-sm text-blue-600 hover:text-blue-800">忘记密码？</a>
+            </div>
+
+            <!-- 登录按钮 -->
+            <button type="submit" class="material-button ripple w-full mb-4">
+                登录
+            </button>
+
+            <!-- 分割线 -->
+            <div class="flex items-center my-6">
+                <div class="flex-1 border-t border-gray-300"></div>
+                <span class="px-4 text-sm text-gray-500">或</span>
+                <div class="flex-1 border-t border-gray-300"></div>
+            </div>
+
+            <!-- 其他登录方式 -->
+            <div class="space-y-3">
+                <button type="button" class="w-full border border-gray-300 rounded-4 py-3 px-4 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                    <i class="fab fa-google text-red-500 mr-3"></i>
+                    <span class="text-gray-700">使用 Google 登录</span>
+                </button>
+                <button type="button" class="w-full border border-gray-300 rounded-4 py-3 px-4 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                    <i class="fab fa-microsoft text-blue-500 mr-3"></i>
+                    <span class="text-gray-700">使用 Microsoft 登录</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- 底部链接 -->
+        <div class="text-center mt-8 pt-6 border-t border-gray-200">
+            <p class="text-sm text-gray-600">
+                还没有账户？
+                <a href="#" class="text-blue-600 hover:text-blue-800 font-medium">立即注册</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Material Design FAB -->
+    <button class="material-fab">
+        <i class="fas fa-question"></i>
+    </button>
+
+    <!-- 底部信息 -->
+    <div class="fixed bottom-4 left-4 text-xs text-gray-500">
+        <p>Material Design 3.0</p>
+        <p>© 2024 访客管理系统</p>
+    </div>
+
+    <script>
+        // Material Design 交互效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 输入框焦点效果
+            const inputs = document.querySelectorAll('.material-input input');
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.classList.add('focused');
+                });
+                
+                input.addEventListener('blur', function() {
+                    if (!this.value) {
+                        this.parentElement.classList.remove('focused');
+                    }
+                });
+            });
+
+            // 按钮点击效果
+            const buttons = document.querySelectorAll('.material-button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // 模拟登录过程
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>登录中...';
+                    this.disabled = true;
+                    
+                    setTimeout(() => {
+                        this.innerHTML = '<i class="fas fa-check mr-2"></i>登录成功';
+                        this.style.background = '#4caf50';
+                        
+                        setTimeout(() => {
+                            this.innerHTML = '登录';
+                            this.style.background = '#1976d2';
+                            this.disabled = false;
+                        }, 1500);
+                    }, 2000);
+                });
+            });
+
+            // FAB点击效果
+            const fab = document.querySelector('.material-fab');
+            fab.addEventListener('click', function() {
+                alert('Material Design 风格的访客管理系统\n\n特点：\n• 简洁的线条和几何形状\n• 丰富的动画效果\n• 层次分明的卡片设计\n• 鲜明的色彩对比');
+            });
+        });
+    </script>
+</body>
+</html> 

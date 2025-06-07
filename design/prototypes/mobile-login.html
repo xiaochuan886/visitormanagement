@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 移动端登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* iPhone 14 Pro 样式模拟 */
+        .iphone-frame {
+            width: 393px;
+            height: 852px;
+            background: #000;
+            border-radius: 47px;
+            padding: 8px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .iphone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 39px;
+            overflow: hidden;
+            position: relative;
+        }
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+        .status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 47px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 30px 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 5;
+        }
+        .home-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 134px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+        .app-content {
+            padding: 60px 24px 40px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .floating-animation {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-focus:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <!-- iPhone 框架 -->
+    <div class="iphone-frame">
+        <div class="iphone-screen">
+            <!-- 刘海 -->
+            <div class="notch"></div>
+            
+            <!-- 状态栏 -->
+            <div class="status-bar">
+                <div>9:41</div>
+                <div class="flex items-center space-x-1">
+                    <i class="fas fa-signal text-xs"></i>
+                    <i class="fas fa-wifi text-xs"></i>
+                    <i class="fas fa-battery-three-quarters text-xs"></i>
+                </div>
+            </div>
+
+            <!-- 主要内容 -->
+            <div class="app-content">
+                <!-- 背景装饰 -->
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-20 -right-20 w-40 h-40 bg-white opacity-10 rounded-full floating-animation"></div>
+                    <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-white opacity-5 rounded-full floating-animation" style="animation-delay: -3s;"></div>
+                    <div class="absolute top-1/3 left-1/4 w-16 h-16 bg-white opacity-10 rounded-full floating-animation" style="animation-delay: -1s;"></div>
+                </div>
+
+                <!-- Logo 和标题 -->
+                <div class="text-center mb-12 relative z-10">
+                    <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-lg mb-6">
+                        <i class="fas fa-users text-3xl text-blue-600"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-white mb-2">访客管理</h1>
+                    <p class="text-blue-100 text-sm">安全便捷的访客服务</p>
+                </div>
+
+                <!-- 登录表单 -->
+                <div class="glass-card rounded-3xl p-8 mb-8 relative z-10">
+                    <form id="mobileLoginForm" class="space-y-6">
+                        <!-- 用户名输入 -->
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                                用户名
+                            </label>
+                            <div class="relative">
+                                <input 
+                                    type="text" 
+                                    id="username" 
+                                    name="username"
+                                    class="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-2xl focus:outline-none input-focus transition-all duration-200 text-lg"
+                                    placeholder="请输入用户名"
+                                    required
+                                >
+                                <i class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <!-- 密码输入 -->
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                                密码
+                            </label>
+                            <div class="relative">
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    name="password"
+                                    class="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-2xl focus:outline-none input-focus transition-all duration-200 text-lg"
+                                    placeholder="请输入密码"
+                                    required
+                                >
+                                <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                <button 
+                                    type="button" 
+                                    id="togglePassword"
+                                    class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                >
+                                    <i class="fas fa-eye" id="eyeIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 记住我 -->
+                        <div class="flex items-center justify-between">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="remember" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-gray-600">记住登录</span>
+                            </label>
+                            <a href="#" class="text-sm text-blue-600">
+                                忘记密码？
+                            </a>
+                        </div>
+
+                        <!-- 登录按钮 -->
+                        <button 
+                            type="submit" 
+                            class="w-full btn-primary text-white font-semibold py-4 px-4 rounded-2xl focus:outline-none text-lg"
+                        >
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            登录
+                        </button>
+                    </form>
+                </div>
+
+                <!-- 快速登录 -->
+                <div class="relative z-10">
+                    <div class="relative mb-6">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-white border-opacity-30"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-4 bg-transparent text-white">快速登录</span>
+                        </div>
+                    </div>
+
+                    <!-- 生物识别登录 -->
+                    <div class="grid grid-cols-3 gap-4 mb-8">
+                        <button class="glass-card rounded-2xl p-4 text-center">
+                            <i class="fas fa-fingerprint text-2xl text-blue-600 mb-2"></i>
+                            <div class="text-xs text-gray-600">指纹</div>
+                        </button>
+                        <button class="glass-card rounded-2xl p-4 text-center">
+                            <i class="fas fa-eye text-2xl text-green-600 mb-2"></i>
+                            <div class="text-xs text-gray-600">面容</div>
+                        </button>
+                        <button class="glass-card rounded-2xl p-4 text-center">
+                            <i class="fas fa-qrcode text-2xl text-purple-600 mb-2"></i>
+                            <div class="text-xs text-gray-600">扫码</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 底部信息 -->
+                <div class="text-center text-white text-opacity-80 text-xs relative z-10">
+                    <p>© 2024 访客管理系统</p>
+                    <p class="mt-1">版本 v1.0.0</p>
+                </div>
+            </div>
+
+            <!-- Home 指示器 -->
+            <div class="home-indicator"></div>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 flex items-center space-x-3 mx-4">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span class="text-gray-700">登录中...</span>
+        </div>
+    </div>
+
+    <!-- 成功提示 -->
+    <div id="successMessage" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-2xl shadow-lg z-50 hidden">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span>登录成功！</span>
+        </div>
+    </div>
+
+    <script>
+        // 密码显示/隐藏切换
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.className = 'fas fa-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.className = 'fas fa-eye';
+            }
+        });
+
+        // 表单提交处理
+        document.getElementById('mobileLoginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showMobileMessage('请填写完整的登录信息', 'error');
+                return;
+            }
+            
+            // 显示加载状态
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            
+            // 模拟登录请求
+            setTimeout(() => {
+                // 隐藏加载状态
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                
+                // 显示成功消息
+                document.getElementById('successMessage').classList.remove('hidden');
+                
+                // 添加触觉反馈（如果支持）
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+                
+                // 模拟跳转
+                setTimeout(() => {
+                    document.getElementById('successMessage').classList.add('hidden');
+                    // 这里可以跳转到移动端主界面
+                    showMobileMessage('跳转到主界面...', 'success');
+                }, 1500);
+            }, 2000);
+        });
+
+        // 生物识别登录模拟
+        document.querySelectorAll('.glass-card button').forEach((btn, index) => {
+            btn.addEventListener('click', function() {
+                const types = ['指纹', '面容', '扫码'];
+                const type = types[index];
+                
+                if (type) {
+                    // 添加触觉反馈
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                    
+                    showMobileMessage(`正在使用${type}登录...`, 'info');
+                    
+                    setTimeout(() => {
+                        if (Math.random() > 0.3) {
+                            showMobileMessage(`${type}登录成功！`, 'success');
+                        } else {
+                            showMobileMessage(`${type}识别失败，请重试`, 'error');
+                        }
+                    }, 1500);
+                }
+            });
+        });
+
+        // 移动端消息提示
+        function showMobileMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+            
+            messageDiv.className = `fixed top-20 left-1/2 transform -translate-x-1/2 ${colors[type]} text-white px-6 py-3 rounded-2xl shadow-lg z-50`;
+            messageDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            // 添加动画
+            setTimeout(() => {
+                messageDiv.style.transform = 'translateX(-50%) translateY(10px)';
+                messageDiv.style.opacity = '1';
+            }, 100);
+            
+            // 3秒后移除
+            setTimeout(() => {
+                messageDiv.style.transform = 'translateX(-50%) translateY(-10px)';
+                messageDiv.style.opacity = '0';
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        // 输入框焦点效果
+        const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+        });
+
+        // 触摸反馈
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('touchstart', function() {
+                this.style.transform = 'scale(0.95)';
+            });
+            
+            button.addEventListener('touchend', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            // 模拟状态栏时间更新
+            function updateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                document.querySelector('.status-bar div:first-child').textContent = timeString;
+            }
+            
+            updateTime();
+            setInterval(updateTime, 60000); // 每分钟更新一次
+            
+            // 添加页面加载动画
+            const content = document.querySelector('.app-content');
+            content.style.opacity = '0';
+            content.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                content.style.transition = 'all 0.5s ease-out';
+                content.style.opacity = '1';
+                content.style.transform = 'translateY(0)';
+            }, 300);
+        });
+
+        // 防止页面缩放
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html> 

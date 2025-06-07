@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 多种设计风格展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .style-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .style-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        .style-preview {
+            height: 300px;
+            overflow: hidden;
+            position: relative;
+        }
+        .style-preview iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            transform: scale(0.8);
+            transform-origin: top left;
+        }
+        .style-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 100%);
+            pointer-events: none;
+        }
+        .style-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 40px;
+        }
+        .feature-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: white;
+            font-size: 24px;
+        }
+        .comparison-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .comparison-table th {
+            background: #f8f9fa;
+            padding: 16px;
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .comparison-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f3f4;
+        }
+        .check-icon {
+            color: #10b981;
+        }
+        .x-icon {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 英雄区域 -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="max-w-4xl mx-auto px-4">
+                <h1 class="text-5xl font-bold mb-6">访客管理系统</h1>
+                <h2 class="text-2xl font-light mb-8">多种流行设计风格展示</h2>
+                <p class="text-xl opacity-90 mb-12 max-w-2xl mx-auto">
+                    探索现代UI设计的多样性，从经典的Material Design到前沿的Glassmorphism，
+                    为您的项目选择最适合的设计风格。
+                </p>
+                <div class="flex justify-center space-x-4">
+                    <button class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-play mr-2"></i>
+                        开始体验
+                    </button>
+                    <button class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors">
+                        <i class="fas fa-download mr-2"></i>
+                        下载源码
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 设计风格展示 -->
+    <section class="py-20">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">设计风格对比</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    每种设计风格都有其独特的视觉语言和用户体验特点，选择适合您品牌和用户群体的风格。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- 原始风格 -->
+                <div class="style-card" onclick="openStyle('login.html')">
+                    <div class="style-preview">
+                        <iframe src="login.html"></iframe>
+                        <div class="style-overlay"></div>
+                        <div class="style-badge">经典</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">经典渐变风格</h3>
+                        <p class="text-gray-600 text-sm mb-4">
+                            现代渐变背景配合玻璃效果，简洁优雅的设计语言。
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">渐变背景</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">玻璃效果</span>
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">现代感</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Material Design -->
+                <div class="style-card" onclick="openStyle('login-material.html')">
+                    <div class="style-preview">
+                        <iframe src="login-material.html"></iframe>
+                        <div class="style-overlay"></div>
+                        <div class="style-badge">Google</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Material Design</h3>
+                        <p class="text-gray-600 text-sm mb-4">
+                            Google的设计语言，强调层次感和物理隐喻的交互体验。
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">层次感</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">动画丰富</span>
+                            <span class="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">FAB按钮</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Neumorphism -->
+                <div class="style-card" onclick="openStyle('login-neumorphism.html')">
+                    <div class="style-preview">
+                        <iframe src="login-neumorphism.html"></iframe>
+                        <div class="style-overlay"></div>
+                        <div class="style-badge">新拟物</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Neumorphism</h3>
+                        <p class="text-gray-600 text-sm mb-4">
+                            新拟物化设计，柔和的阴影营造出浮雕般的视觉效果。
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded">柔和阴影</span>
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">浮雕效果</span>
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">舒适感</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Glassmorphism -->
+                <div class="style-card" onclick="openStyle('login-glassmorphism.html')">
+                    <div class="style-preview">
+                        <iframe src="login-glassmorphism.html"></iframe>
+                        <div class="style-overlay"></div>
+                        <div class="style-badge">玻璃态</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Glassmorphism</h3>
+                        <p class="text-gray-600 text-sm mb-4">
+                            玻璃拟态设计，透明度和模糊效果营造科技感体验。
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">透明质感</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">模糊效果</span>
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">科技感</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 特性对比 -->
+    <section class="py-20 bg-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">设计风格特性对比</h2>
+                <p class="text-xl text-gray-600">
+                    详细了解每种设计风格的特点和适用场景
+                </p>
+            </div>
+
+            <div class="comparison-table">
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>经典渐变</th>
+                            <th>Material Design</th>
+                            <th>Neumorphism</th>
+                            <th>Glassmorphism</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="font-semibold">视觉层次</td>
+                            <td><i class="fas fa-check check-icon"></i> 清晰</td>
+                            <td><i class="fas fa-check check-icon"></i> 强烈</td>
+                            <td><i class="fas fa-check check-icon"></i> 柔和</td>
+                            <td><i class="fas fa-check check-icon"></i> 透明</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold">动画效果</td>
+                            <td><i class="fas fa-check check-icon"></i> 基础</td>
+                            <td><i class="fas fa-check check-icon"></i> 丰富</td>
+                            <td><i class="fas fa-check check-icon"></i> 微妙</td>
+                            <td><i class="fas fa-check check-icon"></i> 流畅</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold">可访问性</td>
+                            <td><i class="fas fa-check check-icon"></i> 优秀</td>
+                            <td><i class="fas fa-check check-icon"></i> 优秀</td>
+                            <td><i class="fas fa-times x-icon"></i> 一般</td>
+                            <td><i class="fas fa-times x-icon"></i> 一般</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold">浏览器兼容</td>
+                            <td><i class="fas fa-check check-icon"></i> 优秀</td>
+                            <td><i class="fas fa-check check-icon"></i> 优秀</td>
+                            <td><i class="fas fa-check check-icon"></i> 良好</td>
+                            <td><i class="fas fa-times x-icon"></i> 有限</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold">开发复杂度</td>
+                            <td><i class="fas fa-check check-icon"></i> 简单</td>
+                            <td><i class="fas fa-times x-icon"></i> 中等</td>
+                            <td><i class="fas fa-times x-icon"></i> 复杂</td>
+                            <td><i class="fas fa-times x-icon"></i> 复杂</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold">适用场景</td>
+                            <td>通用</td>
+                            <td>企业应用</td>
+                            <td>创意项目</td>
+                            <td>科技产品</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 技术特性 -->
+    <section class="py-20 bg-gray-50">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">技术实现特性</h2>
+                <p class="text-xl text-gray-600">
+                    所有设计风格都基于现代Web技术实现
+                </p>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">纯CSS实现</h3>
+                    <p class="text-gray-600 text-sm">
+                        使用Tailwind CSS和自定义CSS，无需额外的UI框架依赖。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">响应式设计</h3>
+                    <p class="text-gray-600 text-sm">
+                        所有风格都完美适配桌面端、平板和移动设备。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-palette"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">主题定制</h3>
+                    <p class="text-gray-600 text-sm">
+                        支持颜色主题定制，轻松适配您的品牌色彩。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">性能优化</h3>
+                    <p class="text-gray-600 text-sm">
+                        优化的CSS和JavaScript，确保快速加载和流畅交互。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-universal-access"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">无障碍支持</h3>
+                    <p class="text-gray-600 text-sm">
+                        遵循WCAG指南，支持键盘导航和屏幕阅读器。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">浏览器兼容</h3>
+                    <p class="text-gray-600 text-sm">
+                        支持现代浏览器，包括Chrome、Firefox、Safari和Edge。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 使用指南 -->
+    <section class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">如何选择设计风格</h2>
+                <p class="text-xl text-gray-600">
+                    根据您的项目需求和目标用户选择最适合的设计风格
+                </p>
+            </div>
+
+            <div class="space-y-8">
+                <div class="bg-blue-50 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-blue-900 mb-3">
+                        <i class="fas fa-building mr-2"></i>
+                        企业级应用
+                    </h3>
+                    <p class="text-blue-800 mb-3">
+                        推荐使用 <strong>经典渐变风格</strong> 或 <strong>Material Design</strong>
+                    </p>
+                    <p class="text-blue-700 text-sm">
+                        这些风格具有良好的可访问性和浏览器兼容性，适合大型企业的严肃应用场景。
+                    </p>
+                </div>
+
+                <div class="bg-green-50 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-green-900 mb-3">
+                        <i class="fas fa-lightbulb mr-2"></i>
+                        创意项目
+                    </h3>
+                    <p class="text-green-800 mb-3">
+                        推荐使用 <strong>Neumorphism</strong> 或 <strong>Glassmorphism</strong>
+                    </p>
+                    <p class="text-green-700 text-sm">
+                        这些前沿设计风格能够吸引用户注意力，适合创意工作室和艺术项目。
+                    </p>
+                </div>
+
+                <div class="bg-purple-50 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-purple-900 mb-3">
+                        <i class="fas fa-rocket mr-2"></i>
+                        科技产品
+                    </h3>
+                    <p class="text-purple-800 mb-3">
+                        推荐使用 <strong>Glassmorphism</strong> 或 <strong>Material Design</strong>
+                    </p>
+                    <p class="text-purple-700 text-sm">
+                        科技感强烈的设计风格能够体现产品的创新性和前瞻性。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">访客管理系统</h3>
+                    <p class="text-gray-400 text-sm">
+                        现代化的访客管理解决方案，支持多种设计风格，满足不同场景需求。
+                    </p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">设计风格</h3>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white">经典渐变风格</a></li>
+                        <li><a href="#" class="hover:text-white">Material Design</a></li>
+                        <li><a href="#" class="hover:text-white">Neumorphism</a></li>
+                        <li><a href="#" class="hover:text-white">Glassmorphism</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">技术支持</h3>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white">使用文档</a></li>
+                        <li><a href="#" class="hover:text-white">API参考</a></li>
+                        <li><a href="#" class="hover:text-white">源码下载</a></li>
+                        <li><a href="#" class="hover:text-white">技术支持</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+                <p>© 2024 访客管理系统. 多种设计风格展示版本.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function openStyle(filename) {
+            window.open(filename, '_blank');
+        }
+
+        // 添加滚动动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptions);
+
+            // 为所有卡片添加动画
+            const cards = document.querySelectorAll('.style-card, .feature-card');
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                observer.observe(card);
+            });
+
+            // 英雄区域动画
+            const heroContent = document.querySelector('.hero-content');
+            heroContent.style.opacity = '0';
+            heroContent.style.transform = 'translateY(30px)';
+            heroContent.style.transition = 'opacity 1s ease, transform 1s ease';
+            
+            setTimeout(() => {
+                heroContent.style.opacity = '1';
+                heroContent.style.transform = 'translateY(0)';
+            }, 300);
+        });
+    </script>
+</body>
+</html> 

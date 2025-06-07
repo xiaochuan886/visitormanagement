@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - 员工管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .employee-card {
+            transition: all 0.3s ease;
+        }
+        .employee-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .status-leave {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-id-badge text-blue-600 text-xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">员工管理</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-plus mr-2"></i>
+                        新增员工
+                    </button>
+                    <button onclick="window.location.href='dashboard.html'" 
+                            class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        返回仪表板
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 统计概览 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-lg">
+                        <i class="fas fa-users text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">总员工数</p>
+                        <p class="text-2xl font-bold text-gray-900">156</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-lg">
+                        <i class="fas fa-user-check text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">在职员工</p>
+                        <p class="text-2xl font-bold text-gray-900">142</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-lg">
+                        <i class="fas fa-user-clock text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">请假中</p>
+                        <p class="text-2xl font-bold text-gray-900">8</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-lg">
+                        <i class="fas fa-user-times text-red-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-500">离职员工</p>
+                        <p class="text-2xl font-bold text-gray-900">6</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜索和筛选 -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div class="relative">
+                    <input type="text" placeholder="搜索员工姓名、工号..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+
+                <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">全部部门</option>
+                    <option value="tech">技术部</option>
+                    <option value="marketing">市场部</option>
+                    <option value="finance">财务部</option>
+                    <option value="hr">人事部</option>
+                    <option value="admin">行政部</option>
+                </select>
+
+                <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">全部职位</option>
+                    <option value="manager">经理</option>
+                    <option value="engineer">工程师</option>
+                    <option value="specialist">专员</option>
+                    <option value="assistant">助理</option>
+                </select>
+
+                <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">全部状态</option>
+                    <option value="active">在职</option>
+                    <option value="leave">请假</option>
+                    <option value="inactive">离职</option>
+                </select>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-50">
+                        技术部
+                    </button>
+                    <button class="px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-50">
+                        市场部
+                    </button>
+                    <button class="px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-50">
+                        新入职
+                    </button>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-search mr-2"></i>
+                        搜索
+                    </button>
+                    <button class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <i class="fas fa-download mr-2"></i>
+                        导出
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 员工列表 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- 员工卡片 1 -->
+            <div class="employee-card bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=60&fit=crop&crop=face" 
+                             alt="员工头像" class="w-12 h-12 rounded-full">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">王工程师</h3>
+                            <p class="text-sm text-gray-500">工号: EMP001</p>
+                        </div>
+                    </div>
+                    <span class="status-active px-2 py-1 rounded-full text-xs font-medium">
+                        在职
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building w-4 mr-2 text-gray-400"></i>
+                        <span>技术部</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-briefcase w-4 mr-2 text-gray-400"></i>
+                        <span>高级软件工程师</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-phone w-4 mr-2 text-gray-400"></i>
+                        <span>13800138001</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-envelope w-4 mr-2 text-gray-400"></i>
+                        <span>wang.engineer@company.com</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>入职时间: 2022-03-15</span>
+                    <span>工龄: 1年9个月</span>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div class="text-xs text-gray-500 mb-1">本月访客接待</div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-semibold text-blue-600">12</span>
+                        <span class="text-xs text-green-600">
+                            <i class="fas fa-arrow-up mr-1"></i>
+                            +20%
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button onclick="viewEmployee(1)" class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <i class="fas fa-eye mr-1"></i>
+                        查看
+                    </button>
+                    <button onclick="editEmployee(1)" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                        <i class="fas fa-edit mr-1"></i>
+                        编辑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 员工卡片 2 -->
+            <div class="employee-card bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=60&h=60&fit=crop&crop=face" 
+                             alt="员工头像" class="w-12 h-12 rounded-full">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">刘经理</h3>
+                            <p class="text-sm text-gray-500">工号: EMP002</p>
+                        </div>
+                    </div>
+                    <span class="status-active px-2 py-1 rounded-full text-xs font-medium">
+                        在职
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building w-4 mr-2 text-gray-400"></i>
+                        <span>市场部</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-briefcase w-4 mr-2 text-gray-400"></i>
+                        <span>市场部经理</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-phone w-4 mr-2 text-gray-400"></i>
+                        <span>13900139002</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-envelope w-4 mr-2 text-gray-400"></i>
+                        <span>liu.manager@company.com</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>入职时间: 2021-08-20</span>
+                    <span>工龄: 2年5个月</span>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div class="text-xs text-gray-500 mb-1">本月访客接待</div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-semibold text-blue-600">8</span>
+                        <span class="text-xs text-red-600">
+                            <i class="fas fa-arrow-down mr-1"></i>
+                            -5%
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button onclick="viewEmployee(2)" class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <i class="fas fa-eye mr-1"></i>
+                        查看
+                    </button>
+                    <button onclick="editEmployee(2)" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                        <i class="fas fa-edit mr-1"></i>
+                        编辑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 员工卡片 3 -->
+            <div class="employee-card bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face" 
+                             alt="员工头像" class="w-12 h-12 rounded-full">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">陈会计</h3>
+                            <p class="text-sm text-gray-500">工号: EMP003</p>
+                        </div>
+                    </div>
+                    <span class="status-leave px-2 py-1 rounded-full text-xs font-medium">
+                        请假中
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building w-4 mr-2 text-gray-400"></i>
+                        <span>财务部</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-briefcase w-4 mr-2 text-gray-400"></i>
+                        <span>财务专员</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-phone w-4 mr-2 text-gray-400"></i>
+                        <span>13700137003</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-envelope w-4 mr-2 text-gray-400"></i>
+                        <span>chen.accountant@company.com</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>入职时间: 2020-12-01</span>
+                    <span>工龄: 3年1个月</span>
+                </div>
+
+                <div class="bg-yellow-50 rounded-lg p-3 mb-4">
+                    <div class="text-xs text-yellow-600 mb-1">请假信息</div>
+                    <div class="text-sm text-yellow-800">
+                        病假 | 2024-01-10 至 2024-01-17
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button onclick="viewEmployee(3)" class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <i class="fas fa-eye mr-1"></i>
+                        查看
+                    </button>
+                    <button onclick="editEmployee(3)" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                        <i class="fas fa-edit mr-1"></i>
+                        编辑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 员工卡片 4 -->
+            <div class="employee-card bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&h=60&fit=crop&crop=face" 
+                             alt="员工头像" class="w-12 h-12 rounded-full">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">孙主管</h3>
+                            <p class="text-sm text-gray-500">工号: EMP004</p>
+                        </div>
+                    </div>
+                    <span class="status-active px-2 py-1 rounded-full text-xs font-medium">
+                        在职
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building w-4 mr-2 text-gray-400"></i>
+                        <span>人事部</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-briefcase w-4 mr-2 text-gray-400"></i>
+                        <span>人事主管</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-phone w-4 mr-2 text-gray-400"></i>
+                        <span>13600136004</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-envelope w-4 mr-2 text-gray-400"></i>
+                        <span>sun.supervisor@company.com</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>入职时间: 2019-06-15</span>
+                    <span>工龄: 4年7个月</span>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div class="text-xs text-gray-500 mb-1">本月访客接待</div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-semibold text-blue-600">15</span>
+                        <span class="text-xs text-green-600">
+                            <i class="fas fa-arrow-up mr-1"></i>
+                            +35%
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button onclick="viewEmployee(4)" class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <i class="fas fa-eye mr-1"></i>
+                        查看
+                    </button>
+                    <button onclick="editEmployee(4)" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                        <i class="fas fa-edit mr-1"></i>
+                        编辑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 员工卡片 5 -->
+            <div class="employee-card bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60&h=60&fit=crop&crop=face" 
+                             alt="员工头像" class="w-12 h-12 rounded-full">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">李助理</h3>
+                            <p class="text-sm text-gray-500">工号: EMP005</p>
+                        </div>
+                    </div>
+                    <span class="status-active px-2 py-1 rounded-full text-xs font-medium">
+                        在职
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building w-4 mr-2 text-gray-400"></i>
+                        <span>行政部</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-briefcase w-4 mr-2 text-gray-400"></i>
+                        <span>行政助理</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-phone w-4 mr-2 text-gray-400"></i>
+                        <span>13500135005</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-envelope w-4 mr-2 text-gray-400"></i>
+                        <span>li.assistant@company.com</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>入职时间: 2023-09-01</span>
+                    <span class="text-green-600 font-medium">新员工</span>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div class="text-xs text-gray-500 mb-1">本月访客接待</div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-semibold text-blue-600">3</span>
+                        <span class="text-xs text-gray-500">
+                            新员工培训中
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button onclick="viewEmployee(5)" class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <i class="fas fa-eye mr-1"></i>
+                        查看
+                    </button>
+                    <button onclick="editEmployee(5)" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                        <i class="fas fa-edit mr-1"></i>
+                        编辑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 员工卡片 6 -->
+            <div class="employee-card bg-white rounded-lg shadow-sm p-6 opacity-60">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?w=60&h=60&fit=crop&crop=face" 
+                             alt="员工头像" class="w-12 h-12 rounded-full grayscale">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">赵前员工</h3>
+                            <p class="text-sm text-gray-500">工号: EMP006</p>
+                        </div>
+                    </div>
+                    <span class="status-inactive px-2 py-1 rounded-full text-xs font-medium">
+                        已离职
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building w-4 mr-2 text-gray-400"></i>
+                        <span>技术部</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-briefcase w-4 mr-2 text-gray-400"></i>
+                        <span>软件工程师</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-calendar w-4 mr-2 text-gray-400"></i>
+                        <span>离职时间: 2024-01-10</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>入职时间: 2022-05-01</span>
+                    <span>工作时长: 1年8个月</span>
+                </div>
+
+                <div class="bg-red-50 rounded-lg p-3 mb-4">
+                    <div class="text-xs text-red-600 mb-1">离职原因</div>
+                    <div class="text-sm text-red-800">
+                        个人发展需要
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button onclick="viewEmployee(6)" class="flex-1 px-3 py-2 text-sm bg-gray-400 text-white rounded cursor-not-allowed" disabled>
+                        <i class="fas fa-eye mr-1"></i>
+                        查看
+                    </button>
+                    <button class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded bg-gray-100 cursor-not-allowed" disabled>
+                        <i class="fas fa-archive mr-1"></i>
+                        已归档
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="mt-8 flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                显示 1-6 条，共 156 条记录
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
+                    上一页
+                </button>
+                <button class="px-3 py-1 text-sm bg-blue-600 text-white rounded">1</button>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">2</button>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">3</button>
+                <span class="px-2 text-gray-500">...</span>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">26</button>
+                <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                    下一页
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 员工详情模态框 -->
+    <div id="employeeModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">员工详情</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6" id="modalContent">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function viewEmployee(id) {
+            // 模拟获取员工详情
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- 基本信息 -->
+                    <div class="lg:col-span-1">
+                        <div class="text-center mb-6">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop&crop=face" 
+                                 alt="员工头像" class="w-30 h-30 rounded-full mx-auto mb-4">
+                            <h4 class="text-xl font-semibold text-gray-900">王工程师</h4>
+                            <p class="text-gray-600">高级软件工程师</p>
+                            <span class="status-active px-3 py-1 rounded-full text-sm font-medium mt-2 inline-block">
+                                在职
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-2">联系信息</h5>
+                                <div class="space-y-2 text-sm text-gray-600">
+                                    <div><i class="fas fa-id-card w-4 mr-2"></i>工号: EMP001</div>
+                                    <div><i class="fas fa-phone w-4 mr-2"></i>13800138001</div>
+                                    <div><i class="fas fa-envelope w-4 mr-2"></i>wang.engineer@company.com</div>
+                                    <div><i class="fas fa-map-marker-alt w-4 mr-2"></i>北京市朝阳区</div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-2">部门信息</h5>
+                                <div class="space-y-2 text-sm text-gray-600">
+                                    <div><i class="fas fa-building w-4 mr-2"></i>技术部</div>
+                                    <div><i class="fas fa-user-tie w-4 mr-2"></i>直属上级: 张技术总监</div>
+                                    <div><i class="fas fa-users w-4 mr-2"></i>团队规模: 12人</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 详细信息 -->
+                    <div class="lg:col-span-2">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-3">工作信息</h5>
+                                <div class="space-y-2 text-sm">
+                                    <div><span class="text-gray-500">入职时间:</span> 2022-03-15</div>
+                                    <div><span class="text-gray-500">工作年限:</span> 1年9个月</div>
+                                    <div><span class="text-gray-500">合同类型:</span> 正式员工</div>
+                                    <div><span class="text-gray-500">工作地点:</span> 北京总部</div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-3">个人信息</h5>
+                                <div class="space-y-2 text-sm">
+                                    <div><span class="text-gray-500">出生日期:</span> 1990-05-20</div>
+                                    <div><span class="text-gray-500">学历:</span> 本科</div>
+                                    <div><span class="text-gray-500">专业:</span> 计算机科学与技术</div>
+                                    <div><span class="text-gray-500">毕业院校:</span> 北京理工大学</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 访客接待统计 -->
+                        <div class="mb-8">
+                            <h5 class="font-medium text-gray-900 mb-3">访客接待统计</h5>
+                            <div class="grid grid-cols-4 gap-4">
+                                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                                    <div class="text-2xl font-bold text-blue-600">12</div>
+                                    <div class="text-xs text-blue-600">本月接待</div>
+                                </div>
+                                <div class="bg-green-50 rounded-lg p-4 text-center">
+                                    <div class="text-2xl font-bold text-green-600">156</div>
+                                    <div class="text-xs text-green-600">累计接待</div>
+                                </div>
+                                <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                                    <div class="text-2xl font-bold text-yellow-600">3</div>
+                                    <div class="text-xs text-yellow-600">待审批</div>
+                                </div>
+                                <div class="bg-purple-50 rounded-lg p-4 text-center">
+                                    <div class="text-2xl font-bold text-purple-600">4.8</div>
+                                    <div class="text-xs text-purple-600">满意度评分</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 最近访客 -->
+                        <div>
+                            <h5 class="font-medium text-gray-900 mb-3">最近接待访客</h5>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客头像" class="w-10 h-10 rounded-full">
+                                        <div>
+                                            <div class="text-sm font-medium">李明</div>
+                                            <div class="text-xs text-gray-500">ABC科技公司</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-gray-500">2024-01-15</div>
+                                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">已完成</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face" 
+                                             alt="访客头像" class="w-10 h-10 rounded-full">
+                                        <div>
+                                            <div class="text-sm font-medium">张丽</div>
+                                            <div class="text-xs text-gray-500">XYZ咨询公司</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-gray-500">2024-01-14</div>
+                                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">进行中</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-6 border-t mt-8">
+                    <button onclick="closeModal()" class="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        关闭
+                    </button>
+                    <button onclick="editEmployee(${id})" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-edit mr-2"></i>
+                        编辑信息
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('employeeModal').classList.remove('hidden');
+        }
+
+        function editEmployee(id) {
+            showMessage('跳转到员工编辑页面...', 'info');
+            // 这里应该跳转到编辑页面
+        }
+
+        function closeModal() {
+            document.getElementById('employeeModal').classList.add('hidden');
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+            
+            messageDiv.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+            messageDiv.textContent = message;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('employeeModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html> 
