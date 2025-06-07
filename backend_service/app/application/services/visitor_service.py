@@ -1,6 +1,8 @@
 """
-访客服务层
+访客服务层 - 优化版本 v2.0
+支持新的约束验证和枚举类型
 """
+import re
 import uuid
 import qrcode
 from io import BytesIO
@@ -9,6 +11,7 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from app.infrastructure.database.models import VisitorModel, EmployeeModel, SiteModel
 from app.application.dto.visitor_dto import (
@@ -27,10 +30,35 @@ from app.core.config import settings
 
 
 class VisitorService:
-    """访客服务"""
+    """访客服务 - 优化版本"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
+    
+    def _validate_email(self, email: str) -> bool:
+        """验证邮箱格式"""
+        if not email:
+            return True  # 允许空邮箱
+        pattern = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+        return bool(re.match(pattern, email))
+    
+    def _validate_gender(self, gender: str) -> bool:
+        """验证性别"""
+        if not gender:
+            return True  # 允许空性别
+        return gender in ['male', 'female', 'other']
+    
+    def _validate_survey_score(self, score: int) -> bool:
+        """验证调查问卷得分"""
+        if score is None:
+            return True  # 允许空得分
+        return 1 <= score <= 10
+    
+    def _validate_checkout_after_checkin(self, checkin_date: datetime, checkout_date: datetime) -> bool:
+        """验证签出时间晚于签到时间"""
+        if not checkin_date or not checkout_date:
+            return True  # 允许空时间
+        return checkout_date > checkin_date
     
     async def create_visitor(
         self, 
@@ -38,37 +66,53 @@ class VisitorService:
         created_by: str, 
         tenant_id: str
     ) -> VisitorResponseDTO:
-        """创建访客"""
+        """创建访客 - 增强验证版本"""
+        # 数据验证
+        if not self._validate_email(visitor_data.email):
+            raise ValueError(f"邮箱格式不正确: {visitor_data.email}")
+        
+        if not self._validate_gender(visitor_data.gender):
+            raise ValueError(f"性别值不正确: {visitor_data.gender}")
+        
         # 生成通行码
         pass_code = self._generate_pass_code()
         
-        # 创建访客模型
-        visitor = VisitorModel(
-            pass_code=pass_code,
-            name=visitor_data.name,
-            email=visitor_data.email,
-            phone_number=visitor_data.phone_number,
-            identification_no=visitor_data.identification_no,
-            license_plate_number=visitor_data.license_plate_number,
-            address=visitor_data.address,
-            gender=visitor_data.gender,
-            company_name=visitor_data.company_name,
-            purpose=visitor_data.purpose,
-            comment=visitor_data.comment,
-            employee_id=visitor_data.employee_id,
-            expected_date=visitor_data.expected_date,
-            expected_time=visitor_data.expected_time,
-            privacy_policy=visitor_data.privacy_policy,
-            promise=visitor_data.promise,
-            site_id=visitor_data.site_id,
-            status=VisitorStatus.PENDING,
-            tenant_id=tenant_id,
-            created_by=created_by
-        )
-        
-        self.db.add(visitor)
-        await self.db.commit()
-        await self.db.refresh(visitor)
+        try:
+            # 创建访客模型
+            visitor = VisitorModel(
+                pass_code=pass_code,
+                name=visitor_data.name,
+                email=visitor_data.email,
+                phone_number=visitor_data.phone_number,
+                identification_no=visitor_data.identification_no,
+                license_plate_number=visitor_data.license_plate_number,
+                address=visitor_data.address,
+                gender=visitor_data.gender,
+                company_name=visitor_data.company_name,
+                purpose=visitor_data.purpose,
+                comment=visitor_data.comment,
+                employee_id=visitor_data.employee_id,
+                expected_date=visitor_data.expected_date,
+                expected_time=visitor_data.expected_time,
+                privacy_policy=visitor_data.privacy_policy,
+                promise=visitor_data.promise,
+                site_id=visitor_data.site_id,
+                status=VisitorStatus.PENDING,  # 使用枚举值
+                tenant_id=tenant_id,
+                created_by=created_by
+            )
+            
+            self.db.add(visitor)
+            await self.db.commit()
+            await self.db.refresh(visitor)
+        except IntegrityError as e:
+            await self.db.rollback()
+            if "chk_visitors_" in str(e):
+                raise ValueError(f"数据验证失败: {str(e)}")
+            elif "foreign key" in str(e).lower():
+                raise ValueError(f"关联数据不存在: {str(e)}")
+            else:
+                raise ValueError(f"数据库约束错误: {str(e)}")
         
         # 缓存访客信息
         await self._cache_visitor(visitor)
@@ -289,19 +333,29 @@ class VisitorService:
         operator: str, 
         tenant_id: str
     ) -> Optional[VisitorResponseDTO]:
-        """访客签到"""
+        """访客签到 - 增强验证版本"""
         visitor = await self._get_visitor_model(visitor_id, tenant_id)
         if not visitor or visitor.status != VisitorStatus.APPROVED:
             return None
         
-        # 签到
-        visitor.checkin_date = datetime.utcnow()
-        visitor.status = VisitorStatus.CHECKED_IN
-        visitor.updated_by = operator
-        visitor.updated_at = datetime.utcnow()
+        checkin_time = datetime.utcnow()
         
-        await self.db.commit()
-        await self.db.refresh(visitor)
+        # 验证签到时间
+        if visitor.checkout_date and not self._validate_checkout_after_checkin(checkin_time, visitor.checkout_date):
+            raise ValueError("签到时间不能晚于已有的签出时间")
+        
+        try:
+            # 签到
+            visitor.checkin_date = checkin_time
+            visitor.status = VisitorStatus.CHECKED_IN  # 使用枚举值
+            visitor.updated_by = operator
+            visitor.updated_at = datetime.utcnow()
+            
+            await self.db.commit()
+            await self.db.refresh(visitor)
+        except IntegrityError as e:
+            await self.db.rollback()
+            raise ValueError(f"签到失败: {str(e)}")
         
         # 更新缓存
         await self._cache_visitor(visitor)

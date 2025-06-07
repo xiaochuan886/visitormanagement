@@ -1,11 +1,14 @@
 """
-员工服务层
+员工服务层 - 优化版本 v2.0
+支持新的约束验证和数据完整性检查
 """
+import re
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from app.infrastructure.database.models import EmployeeModel, DepartmentModel
 from app.application.dto.employee_dto import (
@@ -21,10 +24,42 @@ from app.core.serializers import serialize_for_cache, deserialize_from_cache
 
 
 class EmployeeService:
-    """员工服务"""
+    """员工服务 - 优化版本"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
+    
+    def _validate_email(self, email: str) -> bool:
+        """验证邮箱格式"""
+        if not email:
+            return True  # 允许空邮箱
+        pattern = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+        return bool(re.match(pattern, email))
+    
+    def _validate_phone(self, phone: str) -> bool:
+        """验证电话号码格式"""
+        if not phone:
+            return True  # 允许空电话
+        pattern = r'^[0-9+\-\s()]{10,20}$'
+        return bool(re.match(pattern, phone))
+    
+    def _validate_gender(self, gender: str) -> bool:
+        """验证性别"""
+        if not gender:
+            return True  # 允许空性别
+        return gender in ['male', 'female', 'other']
+    
+    def _validate_status(self, status: str) -> bool:
+        """验证员工状态"""
+        if not status:
+            return True
+        return status in ['active', 'inactive', 'terminated', 'on_leave']
+    
+    def _validate_salary(self, salary: float) -> bool:
+        """验证薪资"""
+        if salary is None:
+            return True  # 允许空薪资
+        return salary >= 0
     
     async def create_employee(
         self, 
@@ -32,16 +67,36 @@ class EmployeeService:
         created_by: str, 
         tenant_id: str
     ) -> EmployeeResponseDTO:
-        """创建员工"""
+        """创建员工 - 增强验证版本"""
+        # 数据验证
+        if not self._validate_email(employee_data.email):
+            raise ValueError(f"邮箱格式不正确: {employee_data.email}")
+        
+        if not self._validate_phone(employee_data.phone_number):
+            raise ValueError(f"电话号码格式不正确: {employee_data.phone_number}")
+        
+        if not self._validate_phone(employee_data.emergency_phone):
+            raise ValueError(f"紧急联系电话格式不正确: {employee_data.emergency_phone}")
+        
+        if not self._validate_gender(employee_data.gender):
+            raise ValueError(f"性别值不正确: {employee_data.gender}")
+        
+        if not self._validate_status(employee_data.status):
+            raise ValueError(f"员工状态不正确: {employee_data.status}")
+        
+        if not self._validate_salary(employee_data.salary):
+            raise ValueError(f"薪资不能为负数: {employee_data.salary}")
+        
         # 检查员工工号是否已存在
         existing_employee = await self._get_employee_by_employee_id(employee_data.employee_id, tenant_id)
         if existing_employee:
             raise ValueError(f"员工工号 {employee_data.employee_id} 已存在")
         
         # 检查邮箱是否已存在
-        existing_email = await self._get_employee_by_email(employee_data.email, tenant_id)
-        if existing_email:
-            raise ValueError(f"邮箱 {employee_data.email} 已存在")
+        if employee_data.email:
+            existing_email = await self._get_employee_by_email(employee_data.email, tenant_id)
+            if existing_email:
+                raise ValueError(f"邮箱 {employee_data.email} 已存在")
         
         # 验证部门是否存在
         department = await self._get_department_by_id(employee_data.department_id, tenant_id)
@@ -54,30 +109,39 @@ class EmployeeService:
             if not manager:
                 raise ValueError(f"上级员工 {employee_data.manager_id} 不存在")
         
-        # 创建员工模型
-        employee = EmployeeModel(
-            name=employee_data.name,
-            employee_id=employee_data.employee_id,
-            email=employee_data.email,
-            phone_number=employee_data.phone_number,
-            department_id=employee_data.department_id,
-            position=employee_data.position,
-            manager_id=employee_data.manager_id,
-            hire_date=employee_data.hire_date,
-            birth_date=employee_data.birth_date,
-            gender=employee_data.gender,
-            address=employee_data.address,
-            emergency_contact=employee_data.emergency_contact,
-            emergency_phone=employee_data.emergency_phone,
-            salary=employee_data.salary,
-            status=employee_data.status or EmployeeStatus.ACTIVE,
-            tenant_id=tenant_id,
-            created_by=created_by
-        )
-        
-        self.db.add(employee)
-        await self.db.commit()
-        await self.db.refresh(employee)
+        try:
+            # 创建员工模型
+            employee = EmployeeModel(
+                name=employee_data.name,
+                employee_id=employee_data.employee_id,
+                email=employee_data.email,
+                phone_number=employee_data.phone_number,
+                department_id=employee_data.department_id,
+                position=employee_data.position,
+                manager_id=employee_data.manager_id,
+                hire_date=employee_data.hire_date,
+                birth_date=employee_data.birth_date,
+                gender=employee_data.gender,
+                address=employee_data.address,
+                emergency_contact=employee_data.emergency_contact,
+                emergency_phone=employee_data.emergency_phone,
+                salary=employee_data.salary,
+                status=employee_data.status or EmployeeStatus.ACTIVE,
+                tenant_id=tenant_id,
+                created_by=created_by
+            )
+            
+            self.db.add(employee)
+            await self.db.commit()
+            await self.db.refresh(employee)
+        except IntegrityError as e:
+            await self.db.rollback()
+            if "chk_employees_" in str(e):
+                raise ValueError(f"数据验证失败: {str(e)}")
+            elif "unique" in str(e).lower():
+                raise ValueError(f"数据重复: {str(e)}")
+            else:
+                raise ValueError(f"数据库约束错误: {str(e)}")
         
         # 缓存员工信息 (暂时禁用)
         await self._cache_employee(employee)

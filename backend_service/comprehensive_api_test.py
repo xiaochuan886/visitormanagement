@@ -292,8 +292,7 @@ class APITester:
             "company_name": "测试公司",
             "purpose": "business",
             "expected_date": (datetime.now() + timedelta(days=1)).isoformat(),
-            "gender": "male",
-            "status": "pending"
+            "gender": "male"
         }
         
         result = await self.make_request(

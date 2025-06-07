@@ -1,12 +1,26 @@
 """
 SQLAlchemy数据库模型定义
+优化版本 v2.0 - 支持枚举类型、约束和性能优化
 """
 from datetime import datetime, time
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float, Time, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float, Time, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import ENUM
 
 from .connection import Base
+
+# 定义枚举类型
+visitor_status_enum = ENUM(
+    'pending', 'approved', 'rejected', 'checked_in', 
+    'checked_out', 'cancelled', 'expired',
+    name='visitor_status'
+)
+
+approval_action_enum = ENUM(
+    'approve', 'reject', 'modify', 'cancel',
+    name='approval_action'
+)
 
 
 class BaseModel:
@@ -51,6 +65,12 @@ class SiteModel(Base, TenantModel):
     working_hours_start = Column(String(5), default="09:00")
     working_hours_end = Column(String(5), default="18:00")
     timezone = Column(String(50), default="Asia/Shanghai")
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'inactive', 'maintenance')", name='chk_sites_status'),
+        CheckConstraint("email IS NULL OR email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='chk_sites_email'),
+    )
 
 
 class DepartmentModel(Base, TenantModel):
@@ -68,6 +88,12 @@ class DepartmentModel(Base, TenantModel):
     manager_id = Column(Integer, ForeignKey("employees.id"))
     site_id = Column(Integer, ForeignKey("sites.id"))
     
+    # 约束
+    __table_args__ = (
+        CheckConstraint("email IS NULL OR email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='chk_departments_email'),
+        CheckConstraint("parent_id != id", name='chk_departments_no_self_parent'),
+    )
+    
     # 关系
     parent = relationship("DepartmentModel", remote_side=lambda: DepartmentModel.id)
     children = relationship("DepartmentModel", back_populates="parent")
@@ -84,6 +110,11 @@ class DesignationModel(Base, TenantModel):
     description = Column(Text)
     level = Column(Integer, default=1)
     site_id = Column(Integer, ForeignKey("sites.id"))
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("level >= 1 AND level <= 10", name='chk_designations_level'),
+    )
     
     # 关系
     site = relationship("SiteModel")
@@ -125,6 +156,15 @@ class EmployeeModel(Base, TenantModel):
     status = Column(String(20), default="active")
     related_account_id = Column(String(100))
     site_id = Column(Integer, ForeignKey("sites.id"))
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'inactive', 'terminated', 'on_leave')", name='chk_employees_status'),
+        CheckConstraint("email IS NULL OR email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='chk_employees_email'),
+        CheckConstraint("gender IS NULL OR gender IN ('male', 'female', 'other')", name='chk_employees_gender'),
+        CheckConstraint("manager_id != id", name='chk_employees_no_self_manager'),
+        CheckConstraint("salary IS NULL OR salary >= 0", name='chk_employees_salary'),
+    )
     
     # 关系
     department = relationship("DepartmentModel", foreign_keys=[department_id])
@@ -172,7 +212,7 @@ class VisitorModel(Base, TenantModel):
     promise = Column(Boolean)
     
     # 状态信息
-    status = Column(String(20), default="pending")
+    status = Column(visitor_status_enum, default='pending')
     approved = Column(Boolean)
     approval_outcome = Column(String(20))
     approval_comment = Column(Text)
@@ -180,6 +220,14 @@ class VisitorModel(Base, TenantModel):
     # 关联信息
     site_id = Column(Integer, ForeignKey("sites.id"))
     survey_response_value = Column(Integer)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("checkout_date IS NULL OR checkin_date IS NULL OR checkout_date > checkin_date", name='chk_visitors_checkout_after_checkin'),
+        CheckConstraint("email IS NULL OR email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='chk_visitors_email'),
+        CheckConstraint("gender IS NULL OR gender IN ('male', 'female', 'other')", name='chk_visitors_gender'),
+        CheckConstraint("survey_response_value IS NULL OR (survey_response_value >= 1 AND survey_response_value <= 10)", name='chk_visitors_survey_score'),
+    )
     
     # 关系
     designation = relationship("DesignationModel")
