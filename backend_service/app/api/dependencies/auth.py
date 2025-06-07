@@ -1,0 +1,96 @@
+"""
+认证依赖注入
+"""
+from typing import Dict, Any
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from app.infrastructure.auth.jwt_handler import jwt_handler
+
+# HTTP Bearer认证
+security = HTTPBearer()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Dict[str, Any]:
+    """获取当前用户信息"""
+    try:
+        # 验证访问令牌
+        payload = jwt_handler.verify_token(credentials.credentials)
+        
+        # 检查令牌类型
+        if payload.get("type") != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="无效的令牌类型",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # 检查必要字段
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="令牌缺少用户信息",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return payload
+        
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌验证失败",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Dict[str, Any] | None:
+    """获取当前用户信息（可选）"""
+    try:
+        if not credentials:
+            return None
+        return await get_current_user(credentials)
+    except HTTPException:
+        return None
+
+
+def require_permissions(required_permissions: list[str]):
+    """权限检查装饰器"""
+    def permission_checker(current_user: Dict[str, Any] = Depends(get_current_user)):
+        user_permissions = current_user.get("permissions", [])
+        
+        # 检查是否有所需权限
+        for permission in required_permissions:
+            if permission not in user_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"缺少权限: {permission}"
+                )
+        
+        return current_user
+    
+    return permission_checker
+
+
+def require_roles(required_roles: list[str]):
+    """角色检查装饰器"""
+    def role_checker(current_user: Dict[str, Any] = Depends(get_current_user)):
+        user_roles = current_user.get("roles", [])
+        
+        # 检查是否有所需角色
+        for role in required_roles:
+            if role not in user_roles:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"缺少角色: {role}"
+                )
+        
+        return current_user
+    
+    return role_checker 

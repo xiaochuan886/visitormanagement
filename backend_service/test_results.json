@@ -1,0 +1,128 @@
+{
+  "total": 24,
+  "passed": 17,
+  "failed": 7,
+  "success_rate": 70.83333333333334,
+  "results": [
+    {
+      "test": "服务器连接",
+      "success": true,
+      "message": "响应: 欢迎使用访客管理系统 (测试模式)"
+    },
+    {
+      "test": "API文档",
+      "success": true,
+      "message": "状态码: 200"
+    },
+    {
+      "test": "OpenAPI规范",
+      "success": true,
+      "message": "发现 18 个API端点"
+    },
+    {
+      "test": "健康检查",
+      "success": true,
+      "message": "状态: healthy"
+    },
+    {
+      "test": "访客API - 获取访客列表",
+      "success": false,
+      "message": "状态码: 403"
+    },
+    {
+      "test": "访客API - 创建访客",
+      "success": false,
+      "message": "状态码: 403"
+    },
+    {
+      "test": "访客API - 访客统计",
+      "success": false,
+      "message": "状态码: 403"
+    },
+    {
+      "test": "认证API - 用户登录",
+      "success": true,
+      "message": "POST /api/v1/auth/login (状态: 422)"
+    },
+    {
+      "test": "认证API - 刷新令牌",
+      "success": true,
+      "message": "POST /api/v1/auth/refresh (状态: 422)"
+    },
+    {
+      "test": "认证API - 获取用户信息",
+      "success": true,
+      "message": "GET /api/v1/auth/me (状态: 422)"
+    },
+    {
+      "test": "员工管理API - 获取员工列表",
+      "success": false,
+      "message": "状态码: 403"
+    },
+    {
+      "test": "员工管理API - 获取部门列表",
+      "success": false,
+      "message": "状态码: 403"
+    },
+    {
+      "test": "员工管理API - 获取站点列表",
+      "success": false,
+      "message": "状态码: 403"
+    },
+    {
+      "test": "数据库模型 - 访客模型",
+      "success": true,
+      "message": "表名: visitors"
+    },
+    {
+      "test": "数据库模型 - 员工模型",
+      "success": true,
+      "message": "表名: employees"
+    },
+    {
+      "test": "数据库模型 - 部门模型",
+      "success": true,
+      "message": "表名: departments"
+    },
+    {
+      "test": "数据库模型 - 站点模型",
+      "success": true,
+      "message": "表名: sites"
+    },
+    {
+      "test": "数据库模型 - 签到点模型",
+      "success": true,
+      "message": "表名: checkin_points"
+    },
+    {
+      "test": "数据库模型 - 审批历史模型",
+      "success": true,
+      "message": "表名: approval_histories"
+    },
+    {
+      "test": "服务层",
+      "success": false,
+      "message": "错误: VisitorService.__init__() missing 1 required positional argument: 'db'"
+    },
+    {
+      "test": "配置 - 应用名称",
+      "success": true,
+      "message": "已设置"
+    },
+    {
+      "test": "配置 - 数据库URL",
+      "success": true,
+      "message": "已设置"
+    },
+    {
+      "test": "配置 - Redis URL",
+      "success": true,
+      "message": "已设置"
+    },
+    {
+      "test": "配置 - JWT密钥",
+      "success": true,
+      "message": "已设置"
+    }
+  ]
+}
