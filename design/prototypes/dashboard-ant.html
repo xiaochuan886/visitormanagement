@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - Ant Design 仪表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Ant Design 色彩系统 */
+        :root {
+            --ant-primary: #1890ff;
+            --ant-primary-hover: #40a9ff;
+            --ant-primary-active: #096dd9;
+            --ant-success: #52c41a;
+            --ant-warning: #faad14;
+            --ant-error: #f5222d;
+            --ant-info: #1890ff;
+            --ant-text-primary: rgba(0, 0, 0, 0.85);
+            --ant-text-secondary: rgba(0, 0, 0, 0.65);
+            --ant-text-disabled: rgba(0, 0, 0, 0.25);
+            --ant-border-base: #d9d9d9;
+            --ant-border-split: #f0f0f0;
+            --ant-background-base: #fff;
+            --ant-background-light: #fafafa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+            background: var(--ant-background-light);
+            color: var(--ant-text-primary);
+            line-height: 1.5715;
+        }
+
+        /* Ant Design 卡片 */
+        .ant-card {
+            background: var(--ant-background-base);
+            border-radius: 6px;
+            border: 1px solid var(--ant-border-split);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+            transition: box-shadow 0.3s;
+        }
+
+        .ant-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Ant Design 按钮 */
+        .ant-btn {
+            height: 32px;
+            padding: 4px 15px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid var(--ant-border-base);
+            background: var(--ant-background-base);
+            color: var(--ant-text-primary);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ant-btn-primary {
+            background: var(--ant-primary);
+            border-color: var(--ant-primary);
+            color: #fff;
+        }
+
+        .ant-btn-primary:hover {
+            background: var(--ant-primary-hover);
+            border-color: var(--ant-primary-hover);
+        }
+
+        .ant-btn:hover {
+            color: var(--ant-primary);
+            border-color: var(--ant-primary);
+        }
+
+        /* Ant Design 导航 */
+        .ant-layout-sider {
+            background: #001529;
+            min-height: 100vh;
+        }
+
+        .ant-menu {
+            background: transparent;
+            border-right: none;
+        }
+
+        .ant-menu-item {
+            color: rgba(255, 255, 255, 0.65);
+            margin: 0;
+            padding: 0 24px;
+            height: 40px;
+            line-height: 40px;
+            transition: all 0.3s;
+        }
+
+        .ant-menu-item:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .ant-menu-item-selected {
+            background: var(--ant-primary) !important;
+            color: #fff !important;
+        }
+
+        /* Ant Design 统计卡片 */
+        .ant-statistic {
+            text-align: center;
+        }
+
+        .ant-statistic-title {
+            color: var(--ant-text-secondary);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .ant-statistic-content {
+            color: var(--ant-text-primary);
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 32px;
+        }
+
+        .ant-statistic-suffix {
+            font-size: 14px;
+            color: var(--ant-text-secondary);
+            margin-left: 4px;
+        }
+
+        /* Ant Design 表格 */
+        .ant-table {
+            background: var(--ant-background-base);
+            border-radius: 6px;
+        }
+
+        .ant-table-thead > tr > th {
+            background: var(--ant-background-light);
+            border-bottom: 1px solid var(--ant-border-split);
+            color: var(--ant-text-primary);
+            font-weight: 500;
+            padding: 16px;
+        }
+
+        .ant-table-tbody > tr > td {
+            border-bottom: 1px solid var(--ant-border-split);
+            padding: 16px;
+        }
+
+        .ant-table-tbody > tr:hover > td {
+            background: var(--ant-background-light);
+        }
+
+        /* Ant Design 标签 */
+        .ant-tag {
+            display: inline-block;
+            height: 22px;
+            margin: 0;
+            padding: 0 7px;
+            font-size: 12px;
+            line-height: 20px;
+            border: 1px solid var(--ant-border-base);
+            border-radius: 4px;
+            background: var(--ant-background-base);
+            color: var(--ant-text-primary);
+        }
+
+        .ant-tag-success {
+            color: var(--ant-success);
+            background: #f6ffed;
+            border-color: #b7eb8f;
+        }
+
+        .ant-tag-warning {
+            color: var(--ant-warning);
+            background: #fffbe6;
+            border-color: #ffe58f;
+        }
+
+        .ant-tag-error {
+            color: var(--ant-error);
+            background: #fff2f0;
+            border-color: #ffccc7;
+        }
+
+        /* Ant Design 输入框 */
+        .ant-input {
+            height: 32px;
+            padding: 4px 11px;
+            color: var(--ant-text-primary);
+            font-size: 14px;
+            line-height: 1.5715;
+            background: var(--ant-background-base);
+            border: 1px solid var(--ant-border-base);
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .ant-input:focus {
+            border-color: var(--ant-primary);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+            outline: none;
+        }
+
+        /* Ant Design 头像 */
+        .ant-avatar {
+            border-radius: 50%;
+            border: 1px solid var(--ant-border-split);
+        }
+
+        /* Ant Design 面包屑 */
+        .ant-breadcrumb {
+            color: var(--ant-text-secondary);
+            font-size: 14px;
+        }
+
+        .ant-breadcrumb-link {
+            color: var(--ant-text-secondary);
+        }
+
+        .ant-breadcrumb-link:hover {
+            color: var(--ant-primary);
+        }
+
+        /* Ant Design 图标 */
+        .anticon {
+            display: inline-block;
+            color: inherit;
+            font-style: normal;
+            line-height: 0;
+            text-align: center;
+            text-transform: none;
+            vertical-align: -0.125em;
+            text-rendering: optimizeLegibility;
+        }
+
+        /* 自定义样式 */
+        .ant-layout-header {
+            background: var(--ant-background-base);
+            border-bottom: 1px solid var(--ant-border-split);
+            padding: 0 24px;
+            height: 64px;
+            line-height: 64px;
+        }
+
+        .ant-layout-content {
+            padding: 24px;
+            min-height: calc(100vh - 64px);
+        }
+
+        .dashboard-card {
+            margin-bottom: 24px;
+        }
+
+        .chart-container {
+            height: 300px;
+            padding: 24px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Ant Design 布局 -->
+    <div class="flex">
+        <!-- 侧边栏 -->
+        <div class="ant-layout-sider w-64">
+            <!-- Logo -->
+            <div class="flex items-center justify-center h-16 bg-black bg-opacity-20">
+                <div class="flex items-center text-white">
+                    <i class="fas fa-users text-xl mr-3"></i>
+                    <span class="text-lg font-semibold">访客管理系统</span>
+                </div>
+            </div>
+
+            <!-- 菜单 -->
+            <nav class="ant-menu mt-4">
+                <div class="ant-menu-item ant-menu-item-selected">
+                    <i class="anticon fas fa-dashboard mr-3"></i>
+                    <span>仪表板</span>
+                </div>
+                <div class="ant-menu-item">
+                    <i class="anticon fas fa-users mr-3"></i>
+                    <span>访客管理</span>
+                </div>
+                <div class="ant-menu-item">
+                    <i class="anticon fas fa-user-check mr-3"></i>
+                    <span>访客审批</span>
+                </div>
+                <div class="ant-menu-item">
+                    <i class="anticon fas fa-id-badge mr-3"></i>
+                    <span>员工管理</span>
+                </div>
+                <div class="ant-menu-item">
+                    <i class="anticon fas fa-building mr-3"></i>
+                    <span>部门管理</span>
+                </div>
+                <div class="ant-menu-item">
+                    <i class="anticon fas fa-chart-bar mr-3"></i>
+                    <span>数据报表</span>
+                </div>
+                <div class="ant-menu-item">
+                    <i class="anticon fas fa-cog mr-3"></i>
+                    <span>系统设置</span>
+                </div>
+            </nav>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="flex-1">
+            <!-- 顶部导航栏 -->
+            <header class="ant-layout-header flex items-center justify-between">
+                <div class="flex items-center">
+                    <nav class="ant-breadcrumb">
+                        <span class="ant-breadcrumb-link">首页</span>
+                        <span class="mx-2">/</span>
+                        <span>仪表板</span>
+                    </nav>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <!-- 搜索框 -->
+                    <div class="relative">
+                        <input type="text" placeholder="搜索访客、员工..." 
+                               class="ant-input w-64 pl-8">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+
+                    <!-- 通知 -->
+                    <button class="relative p-2 hover:bg-gray-100 rounded">
+                        <i class="fas fa-bell text-lg text-gray-600"></i>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">3</span>
+                    </button>
+
+                    <!-- 用户信息 -->
+                    <div class="flex items-center space-x-2">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                             alt="用户头像" class="w-8 h-8 ant-avatar">
+                        <span class="text-sm">张管理员</span>
+                        <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 主要内容 -->
+            <main class="ant-layout-content">
+                <!-- 页面标题 -->
+                <div class="mb-6">
+                    <h1 class="text-2xl font-semibold text-gray-900 mb-2">仪表板</h1>
+                    <p class="text-gray-600">访客管理系统数据概览</p>
+                </div>
+
+                <!-- 统计卡片 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <!-- 今日访客 -->
+                    <div class="ant-card p-6">
+                        <div class="ant-statistic">
+                            <div class="ant-statistic-title">今日访客</div>
+                            <div class="ant-statistic-content text-blue-600">
+                                42
+                                <span class="ant-statistic-suffix">人</span>
+                            </div>
+                            <div class="mt-2 text-sm">
+                                <span class="text-green-600">
+                                    <i class="fas fa-arrow-up mr-1"></i>
+                                    12%
+                                </span>
+                                <span class="text-gray-500 ml-1">比昨日</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 待审批 -->
+                    <div class="ant-card p-6">
+                        <div class="ant-statistic">
+                            <div class="ant-statistic-title">待审批</div>
+                            <div class="ant-statistic-content text-orange-600">
+                                8
+                                <span class="ant-statistic-suffix">个</span>
+                            </div>
+                            <div class="mt-2 text-sm">
+                                <span class="text-orange-600">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    紧急
+                                </span>
+                                <span class="text-gray-500 ml-1">需处理</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 已签到 -->
+                    <div class="ant-card p-6">
+                        <div class="ant-statistic">
+                            <div class="ant-statistic-title">已签到</div>
+                            <div class="ant-statistic-content text-green-600">
+                                28
+                                <span class="ant-statistic-suffix">人</span>
+                            </div>
+                            <div class="mt-2 text-sm">
+                                <span class="text-green-600">
+                                    <i class="fas fa-check mr-1"></i>
+                                    在场
+                                </span>
+                                <span class="text-gray-500 ml-1">访客</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 本月访客 -->
+                    <div class="ant-card p-6">
+                        <div class="ant-statistic">
+                            <div class="ant-statistic-title">本月访客</div>
+                            <div class="ant-statistic-content text-purple-600">
+                                1,247
+                                <span class="ant-statistic-suffix">人</span>
+                            </div>
+                            <div class="mt-2 text-sm">
+                                <span class="text-blue-600">
+                                    <i class="fas fa-calendar mr-1"></i>
+                                    月度
+                                </span>
+                                <span class="text-gray-500 ml-1">统计</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图表区域 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- 访客趋势图 -->
+                    <div class="ant-card">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-medium">访客趋势分析</h3>
+                                <div class="flex space-x-2">
+                                    <button class="ant-btn ant-btn-primary">7天</button>
+                                    <button class="ant-btn">30天</button>
+                                    <button class="ant-btn">90天</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="antVisitorTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 部门分布图 -->
+                    <div class="ant-card">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-medium">部门访客分布</h3>
+                                <button class="ant-btn">
+                                    <i class="fas fa-download mr-2"></i>
+                                    导出
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="antDepartmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据表格区域 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 最近访客表格 -->
+                    <div class="lg:col-span-2 ant-card">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-medium">最近访客</h3>
+                                <a href="visitor-list.html" class="text-blue-600 hover:text-blue-800">查看全部</a>
+                            </div>
+                        </div>
+                        <div class="ant-table">
+                            <table class="w-full">
+                                <thead class="ant-table-thead">
+                                    <tr>
+                                        <th class="text-left">访客姓名</th>
+                                        <th class="text-left">公司</th>
+                                        <th class="text-left">被访人</th>
+                                        <th class="text-left">时间</th>
+                                        <th class="text-left">状态</th>
+                                        <th class="text-left">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="ant-table-tbody">
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 ant-avatar mr-3">
+                                                <span class="font-medium">李先生</span>
+                                            </div>
+                                        </td>
+                                        <td>腾讯科技</td>
+                                        <td>张经理</td>
+                                        <td>09:30</td>
+                                        <td><span class="ant-tag ant-tag-success">已签到</span></td>
+                                        <td>
+                                            <button class="ant-btn text-blue-600">查看</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 ant-avatar mr-3">
+                                                <span class="font-medium">王女士</span>
+                                            </div>
+                                        </td>
+                                        <td>阿里巴巴</td>
+                                        <td>李总监</td>
+                                        <td>10:15</td>
+                                        <td><span class="ant-tag ant-tag-warning">待签到</span></td>
+                                        <td>
+                                            <button class="ant-btn text-blue-600">查看</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 ant-avatar mr-3">
+                                                <span class="font-medium">张总</span>
+                                            </div>
+                                        </td>
+                                        <td>字节跳动</td>
+                                        <td>王CEO</td>
+                                        <td>14:00</td>
+                                        <td><span class="ant-tag ant-tag-error">待审批</span></td>
+                                        <td>
+                                            <button class="ant-btn text-blue-600">审批</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 ant-avatar mr-3">
+                                                <span class="font-medium">刘先生</span>
+                                            </div>
+                                        </td>
+                                        <td>华为技术</td>
+                                        <td>陈主管</td>
+                                        <td>15:30</td>
+                                        <td><span class="ant-tag ant-tag-success">已完成</span></td>
+                                        <td>
+                                            <button class="ant-btn text-blue-600">查看</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 待办事项和快速操作 -->
+                    <div class="space-y-6">
+                        <!-- 待办事项 -->
+                        <div class="ant-card">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="text-lg font-medium">待办事项</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-4">
+                                    <div class="flex items-start">
+                                        <div class="w-2 h-2 bg-red-500 rounded-full mt-2 mr-3"></div>
+                                        <div class="flex-1">
+                                            <div class="font-medium text-gray-900">紧急访客审批</div>
+                                            <div class="text-sm text-gray-500">华为CEO访问申请</div>
+                                            <div class="text-xs text-red-600 mt-1">30分钟前</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <div class="w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3"></div>
+                                        <div class="flex-1">
+                                            <div class="font-medium text-gray-900">访客信息更新</div>
+                                            <div class="text-sm text-gray-500">5位访客信息待确认</div>
+                                            <div class="text-xs text-orange-600 mt-1">1小时前</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <div class="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3"></div>
+                                        <div class="flex-1">
+                                            <div class="font-medium text-gray-900">系统维护通知</div>
+                                            <div class="text-sm text-gray-500">今晚22:00-24:00</div>
+                                            <div class="text-xs text-blue-600 mt-1">2小时前</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 快速操作 -->
+                        <div class="ant-card">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="text-lg font-medium">快速操作</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-3">
+                                    <button class="ant-btn ant-btn-primary w-full">
+                                        <i class="fas fa-user-plus mr-2"></i>
+                                        新增访客
+                                    </button>
+                                    <button class="ant-btn w-full">
+                                        <i class="fas fa-qrcode mr-2"></i>
+                                        扫码签到
+                                    </button>
+                                    <button class="ant-btn w-full">
+                                        <i class="fas fa-file-export mr-2"></i>
+                                        导出报表
+                                    </button>
+                                    <button class="ant-btn w-full">
+                                        <i class="fas fa-cog mr-2"></i>
+                                        系统设置
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 系统信息 -->
+                        <div class="ant-card">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="text-lg font-medium">系统信息</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-3 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">版本号</span>
+                                        <span>v2.1.0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">在线用户</span>
+                                        <span>24人</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">服务器状态</span>
+                                        <span class="text-green-600">正常</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">数据库</span>
+                                        <span class="text-green-600">正常</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">存储使用</span>
+                                        <span>78%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 图表初始化脚本 -->
+    <script>
+        // Ant Design 风格访客趋势图
+        const antVisitorTrendCtx = document.getElementById('antVisitorTrendChart').getContext('2d');
+        new Chart(antVisitorTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                datasets: [{
+                    label: '访客数量',
+                    data: [32, 45, 38, 52, 49, 28, 35],
+                    borderColor: '#1890ff',
+                    backgroundColor: 'rgba(24, 144, 255, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#1890ff',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f0f0f0'
+                        },
+                        ticks: {
+                            color: 'rgba(0, 0, 0, 0.65)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'rgba(0, 0, 0, 0.65)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Ant Design 风格部门分布图
+        const antDepartmentCtx = document.getElementById('antDepartmentChart').getContext('2d');
+        new Chart(antDepartmentCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['技术部', '市场部', '销售部', '人事部', '财务部'],
+                datasets: [{
+                    data: [35, 25, 20, 12, 8],
+                    backgroundColor: [
+                        '#1890ff',
+                        '#52c41a',
+                        '#faad14',
+                        '#f5222d',
+                        '#722ed1'
+                    ],
+                    borderWidth: 0,
+                    cutout: '60%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            color: 'rgba(0, 0, 0, 0.85)',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

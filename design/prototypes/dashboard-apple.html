@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - Apple Design 仪表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Apple Design System */
+        :root {
+            --apple-blue: #007AFF;
+            --apple-green: #34C759;
+            --apple-orange: #FF9500;
+            --apple-red: #FF3B30;
+            --apple-purple: #AF52DE;
+            --apple-gray: #8E8E93;
+            --apple-gray2: #AEAEB2;
+            --apple-gray3: #C7C7CC;
+            --apple-gray4: #D1D1D6;
+            --apple-gray5: #E5E5EA;
+            --apple-gray6: #F2F2F7;
+            --apple-background: #FFFFFF;
+            --apple-secondary-background: #F2F2F7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+            background: var(--apple-secondary-background);
+            color: #000000;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Apple 毛玻璃效果 */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Apple 卡片样式 */
+        .apple-card {
+            background: var(--apple-background);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .apple-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Apple 按钮样式 */
+        .apple-button {
+            background: var(--apple-blue);
+            color: white;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .apple-button:hover {
+            background: #0056CC;
+            transform: scale(0.98);
+        }
+
+        .apple-button:active {
+            transform: scale(0.95);
+        }
+
+        /* Apple 导航栏 */
+        .apple-sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--apple-gray5);
+        }
+
+        .apple-nav-item {
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .apple-nav-item.active {
+            background: var(--apple-blue);
+            color: white;
+        }
+
+        .apple-nav-item:hover:not(.active) {
+            background: var(--apple-gray6);
+        }
+
+        /* Apple 统计卡片 */
+        .apple-stat-card {
+            background: linear-gradient(135deg, var(--apple-blue) 0%, #5856D6 100%);
+            border-radius: 16px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .apple-stat-card.green {
+            background: linear-gradient(135deg, var(--apple-green) 0%, #30D158 100%);
+        }
+
+        .apple-stat-card.orange {
+            background: linear-gradient(135deg, var(--apple-orange) 0%, #FF9F0A 100%);
+        }
+
+        .apple-stat-card.red {
+            background: linear-gradient(135deg, var(--apple-red) 0%, #FF453A 100%);
+        }
+
+        /* Apple 图标样式 */
+        .apple-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+        }
+
+        /* Apple 搜索框 */
+        .apple-search {
+            background: var(--apple-gray6);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .apple-search:focus {
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);
+        }
+
+        /* Apple 头像 */
+        .apple-avatar {
+            border-radius: 50%;
+            border: 2px solid var(--apple-gray5);
+        }
+
+        /* Apple 动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Apple 图表容器 */
+        .apple-chart-container {
+            background: var(--apple-background);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Apple 列表项 */
+        .apple-list-item {
+            background: var(--apple-background);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .apple-list-item:hover {
+            background: var(--apple-gray6);
+        }
+
+        /* Apple 标签 */
+        .apple-tag {
+            background: var(--apple-gray6);
+            color: var(--apple-gray);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+        }
+
+        .apple-tag.success {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--apple-green);
+        }
+
+        .apple-tag.warning {
+            background: rgba(255, 149, 0, 0.1);
+            color: var(--apple-orange);
+        }
+
+        .apple-tag.danger {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--apple-red);
+        }
+    </style>
+</head>
+<body>
+    <!-- Apple 侧边栏 -->
+    <div class="fixed inset-y-0 left-0 z-50 w-72 apple-sidebar">
+        <!-- Logo 区域 -->
+        <div class="flex items-center px-6 py-6">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mr-3">
+                <i class="fas fa-users text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-gray-900">访客管理系统</h1>
+                <p class="text-sm text-gray-500">企业版 v2.0</p>
+            </div>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="px-4 space-y-2">
+            <a href="#" class="apple-nav-item active flex items-center px-4 py-3">
+                <div class="apple-icon bg-blue-500 mr-3">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <span>仪表板</span>
+            </a>
+
+            <a href="visitor-list.html" class="apple-nav-item flex items-center px-4 py-3">
+                <div class="apple-icon bg-green-500 mr-3">
+                    <i class="fas fa-users"></i>
+                </div>
+                <span>访客管理</span>
+            </a>
+
+            <a href="employee-list.html" class="apple-nav-item flex items-center px-4 py-3">
+                <div class="apple-icon bg-orange-500 mr-3">
+                    <i class="fas fa-id-badge"></i>
+                </div>
+                <span>员工管理</span>
+            </a>
+
+            <a href="department-list.html" class="apple-nav-item flex items-center px-4 py-3">
+                <div class="apple-icon bg-purple-500 mr-3">
+                    <i class="fas fa-building"></i>
+                </div>
+                <span>部门管理</span>
+            </a>
+
+            <a href="#" class="apple-nav-item flex items-center px-4 py-3">
+                <div class="apple-icon bg-indigo-500 mr-3">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <span>数据分析</span>
+            </a>
+
+            <a href="settings.html" class="apple-nav-item flex items-center px-4 py-3">
+                <div class="apple-icon bg-gray-500 mr-3">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <span>系统设置</span>
+            </a>
+        </nav>
+
+        <!-- 用户信息 -->
+        <div class="absolute bottom-6 left-4 right-4">
+            <div class="apple-card p-4">
+                <div class="flex items-center">
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                         alt="用户头像" class="w-10 h-10 apple-avatar mr-3">
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold text-gray-900">张管理员</div>
+                        <div class="text-xs text-gray-500">系统管理员</div>
+                    </div>
+                    <button class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="ml-72">
+        <!-- Apple 顶部栏 -->
+        <header class="glass-effect sticky top-0 z-40 border-b border-gray-200">
+            <div class="flex items-center justify-between px-8 py-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">仪表板</h1>
+                    <p class="text-sm text-gray-600">今天是 2024年12月27日，星期五</p>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <!-- 搜索框 -->
+                    <div class="relative">
+                        <input type="text" placeholder="搜索访客、员工或部门..." 
+                               class="apple-search w-80 pl-10">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+
+                    <!-- 通知 -->
+                    <button class="relative p-2 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-bell text-xl text-gray-600"></i>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                    </button>
+
+                    <!-- 用户菜单 -->
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                             alt="用户头像" class="w-8 h-8 apple-avatar">
+                        <span class="text-sm font-medium text-gray-900">张管理员</span>
+                        <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容 -->
+        <main class="p-8">
+            <!-- Apple 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in-up">
+                <!-- 今日访客 -->
+                <div class="apple-stat-card p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-blue-100 text-sm font-medium mb-1">今日访客</p>
+                            <p class="text-3xl font-bold mb-2">42</p>
+                            <div class="flex items-center text-sm text-blue-100">
+                                <i class="fas fa-arrow-up mr-1"></i>
+                                <span>+12% 比昨日</span>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-user-friends text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待审批 -->
+                <div class="apple-stat-card orange p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-orange-100 text-sm font-medium mb-1">待审批</p>
+                            <p class="text-3xl font-bold mb-2">8</p>
+                            <div class="flex items-center text-sm text-orange-100">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span>需要处理</span>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-hourglass-half text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 已签到 -->
+                <div class="apple-stat-card green p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-green-100 text-sm font-medium mb-1">已签到</p>
+                            <p class="text-3xl font-bold mb-2">28</p>
+                            <div class="flex items-center text-sm text-green-100">
+                                <i class="fas fa-check mr-1"></i>
+                                <span>在场访客</span>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-check-circle text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 本月访客 -->
+                <div class="apple-stat-card red p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-red-100 text-sm font-medium mb-1">本月访客</p>
+                            <p class="text-3xl font-bold mb-2">1,247</p>
+                            <div class="flex items-center text-sm text-red-100">
+                                <i class="fas fa-calendar mr-1"></i>
+                                <span>月度统计</span>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-calendar-alt text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图表区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- 访客趋势图 -->
+                <div class="apple-chart-container p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold text-gray-900">访客趋势</h3>
+                        <div class="flex space-x-2">
+                            <button class="apple-button px-4 py-2 text-sm">7天</button>
+                            <button class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">30天</button>
+                        </div>
+                    </div>
+                    <div style="height: 280px;">
+                        <canvas id="appleVisitorTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 部门分布图 -->
+                <div class="apple-chart-container p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold text-gray-900">部门访客分布</h3>
+                        <button class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-external-link-alt"></i>
+                        </button>
+                    </div>
+                    <div style="height: 280px;">
+                        <canvas id="appleDepartmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近访客和快速操作 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 最近访客 -->
+                <div class="lg:col-span-2 apple-card p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold text-gray-900">最近访客</h3>
+                        <a href="visitor-list.html" class="text-blue-600 hover:text-blue-800 text-sm font-medium">查看全部</a>
+                    </div>
+                    <div class="space-y-3">
+                        <!-- 访客项目 -->
+                        <div class="apple-list-item p-4 flex items-center">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-10 h-10 rounded-lg mr-4">
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-900">李先生</div>
+                                <div class="text-sm text-gray-500">腾讯科技 · 产品经理</div>
+                            </div>
+                            <div class="text-right mr-4">
+                                <div class="text-sm font-medium text-gray-900">09:30</div>
+                                <div class="apple-tag success">已签到</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-300"></i>
+                        </div>
+
+                        <div class="apple-list-item p-4 flex items-center">
+                            <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-10 h-10 rounded-lg mr-4">
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-900">王女士</div>
+                                <div class="text-sm text-gray-500">阿里巴巴 · 技术总监</div>
+                            </div>
+                            <div class="text-right mr-4">
+                                <div class="text-sm font-medium text-gray-900">10:15</div>
+                                <div class="apple-tag warning">待签到</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-300"></i>
+                        </div>
+
+                        <div class="apple-list-item p-4 flex items-center">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                                 alt="访客头像" class="w-10 h-10 rounded-lg mr-4">
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-900">张总</div>
+                                <div class="text-sm text-gray-500">字节跳动 · CEO</div>
+                            </div>
+                            <div class="text-right mr-4">
+                                <div class="text-sm font-medium text-gray-900">14:00</div>
+                                <div class="apple-tag danger">待审批</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 快速操作 -->
+                <div class="apple-card p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-6">快速操作</h3>
+                    <div class="space-y-4">
+                        <button class="apple-button w-full py-3 flex items-center justify-center">
+                            <i class="fas fa-user-plus mr-2"></i>
+                            新增访客
+                        </button>
+                        
+                        <button class="w-full py-3 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-200">
+                            <i class="fas fa-qrcode mr-2"></i>
+                            扫码签到
+                        </button>
+                        
+                        <button class="w-full py-3 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-200">
+                            <i class="fas fa-file-export mr-2"></i>
+                            导出报表
+                        </button>
+                        
+                        <button class="w-full py-3 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-200">
+                            <i class="fas fa-cog mr-2"></i>
+                            系统设置
+                        </button>
+                    </div>
+
+                    <!-- 系统状态 -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h4 class="text-sm font-semibold text-gray-900 mb-4">系统状态</h4>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">服务器状态</span>
+                                <div class="flex items-center">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                    <span class="text-sm text-green-600">正常</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">数据库</span>
+                                <div class="flex items-center">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                    <span class="text-sm text-green-600">正常</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">存储空间</span>
+                                <span class="text-sm text-gray-600">78%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 图表初始化脚本 -->
+    <script>
+        // Apple 风格访客趋势图
+        const appleVisitorTrendCtx = document.getElementById('appleVisitorTrendChart').getContext('2d');
+        new Chart(appleVisitorTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                datasets: [{
+                    label: '访客数量',
+                    data: [32, 45, 38, 52, 49, 28, 35],
+                    borderColor: '#007AFF',
+                    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#007AFF',
+                    pointBorderColor: '#FFFFFF',
+                    pointBorderWidth: 2,
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#F2F2F7'
+                        },
+                        ticks: {
+                            color: '#8E8E93',
+                            font: {
+                                family: '-apple-system, BlinkMacSystemFont, sans-serif'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#8E8E93',
+                            font: {
+                                family: '-apple-system, BlinkMacSystemFont, sans-serif'
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Apple 风格部门分布图
+        const appleDepartmentCtx = document.getElementById('appleDepartmentChart').getContext('2d');
+        new Chart(appleDepartmentCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['技术部', '市场部', '销售部', '人事部', '财务部'],
+                datasets: [{
+                    data: [35, 25, 20, 12, 8],
+                    backgroundColor: [
+                        '#007AFF',
+                        '#34C759',
+                        '#FF9500',
+                        '#AF52DE',
+                        '#FF3B30'
+                    ],
+                    borderWidth: 0,
+                    cutout: '65%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            color: '#000000',
+                            font: {
+                                family: '-apple-system, BlinkMacSystemFont, sans-serif',
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

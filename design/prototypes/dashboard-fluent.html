@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客管理系统 - Fluent Design 仪表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Fluent Design System */
+        :root {
+            --fluent-blue: #0078d4;
+            --fluent-blue-light: #40e0ff;
+            --fluent-blue-dark: #005a9e;
+            --fluent-purple: #8764b8;
+            --fluent-green: #107c10;
+            --fluent-orange: #ff8c00;
+            --fluent-red: #d13438;
+            --fluent-gray-10: #faf9f8;
+            --fluent-gray-20: #f3f2f1;
+            --fluent-gray-30: #edebe9;
+            --fluent-gray-40: #e1dfdd;
+            --fluent-gray-50: #d2d0ce;
+            --fluent-gray-60: #c8c6c4;
+            --fluent-gray-70: #a19f9d;
+            --fluent-gray-80: #797775;
+            --fluent-gray-90: #605e5c;
+            --fluent-gray-100: #484644;
+            --fluent-gray-110: #323130;
+            --fluent-gray-120: #201f1e;
+            --fluent-gray-130: #16100c;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, var(--fluent-gray-10) 0%, var(--fluent-gray-20) 100%);
+            color: var(--fluent-gray-120);
+            line-height: 1.4;
+        }
+
+        /* Fluent Design 亚克力效果 */
+        .fluent-acrylic {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .fluent-acrylic-dark {
+            background: rgba(32, 31, 30, 0.8);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Fluent Design 卡片 */
+        .fluent-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            border: 1px solid var(--fluent-gray-40);
+            box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.132), 0 0.3px 0.9px rgba(0, 0, 0, 0.108);
+            transition: all 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fluent-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--fluent-blue) 0%, var(--fluent-purple) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .fluent-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108);
+        }
+
+        .fluent-card:hover::before {
+            opacity: 1;
+        }
+
+        /* Fluent Design 按钮 */
+        .fluent-button {
+            background: var(--fluent-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fluent-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .fluent-button:hover {
+            background: var(--fluent-blue-dark);
+            transform: scale(1.02);
+        }
+
+        .fluent-button:hover::before {
+            left: 100%;
+        }
+
+        .fluent-button:active {
+            transform: scale(0.98);
+        }
+
+        .fluent-button-secondary {
+            background: var(--fluent-gray-20);
+            color: var(--fluent-gray-120);
+            border: 1px solid var(--fluent-gray-60);
+        }
+
+        .fluent-button-secondary:hover {
+            background: var(--fluent-gray-30);
+            border-color: var(--fluent-gray-70);
+        }
+
+        /* Fluent Design 导航 */
+        .fluent-nav {
+            background: var(--fluent-gray-110);
+            color: white;
+        }
+
+        .fluent-nav-item {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fluent-nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--fluent-blue);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+
+        .fluent-nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .fluent-nav-item.active {
+            background: rgba(0, 120, 212, 0.2);
+            color: white;
+        }
+
+        .fluent-nav-item.active::before {
+            transform: scaleY(1);
+        }
+
+        /* Fluent Design 统计卡片 */
+        .fluent-stat-card {
+            background: linear-gradient(135deg, var(--fluent-blue) 0%, var(--fluent-blue-light) 100%);
+            color: white;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fluent-stat-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: fluent-glow 4s ease-in-out infinite;
+        }
+
+        @keyframes fluent-glow {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .fluent-stat-card.green {
+            background: linear-gradient(135deg, var(--fluent-green) 0%, #40e040 100%);
+        }
+
+        .fluent-stat-card.orange {
+            background: linear-gradient(135deg, var(--fluent-orange) 0%, #ffb347 100%);
+        }
+
+        .fluent-stat-card.purple {
+            background: linear-gradient(135deg, var(--fluent-purple) 0%, #b19cd9 100%);
+        }
+
+        /* Fluent Design 输入框 */
+        .fluent-input {
+            background: var(--fluent-gray-10);
+            border: 1px solid var(--fluent-gray-60);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .fluent-input:focus {
+            outline: none;
+            border-color: var(--fluent-blue);
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+            background: white;
+        }
+
+        /* Fluent Design 头像 */
+        .fluent-avatar {
+            border-radius: 50%;
+            border: 2px solid var(--fluent-gray-40);
+            transition: all 0.2s ease;
+        }
+
+        .fluent-avatar:hover {
+            border-color: var(--fluent-blue);
+            transform: scale(1.05);
+        }
+
+        /* Fluent Design 标签 */
+        .fluent-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fluent-tag-success {
+            background: rgba(16, 124, 16, 0.1);
+            color: var(--fluent-green);
+            border: 1px solid rgba(16, 124, 16, 0.2);
+        }
+
+        .fluent-tag-warning {
+            background: rgba(255, 140, 0, 0.1);
+            color: var(--fluent-orange);
+            border: 1px solid rgba(255, 140, 0, 0.2);
+        }
+
+        .fluent-tag-error {
+            background: rgba(209, 52, 56, 0.1);
+            color: var(--fluent-red);
+            border: 1px solid rgba(209, 52, 56, 0.2);
+        }
+
+        /* Fluent Design 表格 */
+        .fluent-table {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.132);
+        }
+
+        .fluent-table th {
+            background: var(--fluent-gray-20);
+            color: var(--fluent-gray-120);
+            font-weight: 600;
+            padding: 16px;
+            border-bottom: 1px solid var(--fluent-gray-40);
+        }
+
+        .fluent-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--fluent-gray-30);
+        }
+
+        .fluent-table tr:hover {
+            background: var(--fluent-gray-10);
+        }
+
+        /* Fluent Design 图表容器 */
+        .fluent-chart-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.132);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Fluent Design 光影效果 */
+        .fluent-reveal {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fluent-reveal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .fluent-reveal:hover::before {
+            opacity: 1;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--fluent-gray-20);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--fluent-gray-60);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--fluent-gray-70);
+        }
+    </style>
+</head>
+<body>
+    <!-- Fluent Design 布局 -->
+    <div class="flex min-h-screen">
+        <!-- 侧边栏 -->
+        <div class="fluent-nav w-64 p-4">
+            <!-- Logo -->
+            <div class="flex items-center mb-8 p-4">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-users text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold text-white">访客管理系统</h1>
+                    <p class="text-xs text-gray-300">Fluent Design</p>
+                </div>
+            </div>
+
+            <!-- 导航菜单 -->
+            <nav class="space-y-2">
+                <div class="fluent-nav-item active fluent-reveal">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    <span>仪表板</span>
+                </div>
+                <div class="fluent-nav-item fluent-reveal">
+                    <i class="fas fa-users mr-3"></i>
+                    <span>访客管理</span>
+                </div>
+                <div class="fluent-nav-item fluent-reveal">
+                    <i class="fas fa-user-check mr-3"></i>
+                    <span>访客审批</span>
+                </div>
+                <div class="fluent-nav-item fluent-reveal">
+                    <i class="fas fa-id-badge mr-3"></i>
+                    <span>员工管理</span>
+                </div>
+                <div class="fluent-nav-item fluent-reveal">
+                    <i class="fas fa-building mr-3"></i>
+                    <span>部门管理</span>
+                </div>
+                <div class="fluent-nav-item fluent-reveal">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    <span>数据分析</span>
+                </div>
+                <div class="fluent-nav-item fluent-reveal">
+                    <i class="fas fa-cog mr-3"></i>
+                    <span>系统设置</span>
+                </div>
+            </nav>
+
+            <!-- 用户信息 -->
+            <div class="absolute bottom-4 left-4 right-4">
+                <div class="fluent-acrylic rounded-lg p-4">
+                    <div class="flex items-center">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                             alt="用户头像" class="w-10 h-10 fluent-avatar mr-3">
+                        <div class="flex-1">
+                            <div class="text-sm font-semibold text-gray-900">张管理员</div>
+                            <div class="text-xs text-gray-600">系统管理员</div>
+                        </div>
+                        <button class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="flex-1">
+            <!-- 顶部导航栏 -->
+            <header class="fluent-acrylic border-b border-gray-200 sticky top-0 z-40">
+                <div class="flex items-center justify-between px-8 py-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">仪表板</h1>
+                        <p class="text-sm text-gray-600">访客管理系统 - 数据概览与快速操作</p>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <!-- 搜索框 -->
+                        <div class="relative">
+                            <input type="text" placeholder="搜索访客、员工或部门..." 
+                                   class="fluent-input w-80 pl-10">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+
+                        <!-- 通知 -->
+                        <button class="relative p-3 rounded-lg hover:bg-gray-100 fluent-reveal">
+                            <i class="fas fa-bell text-xl text-gray-600"></i>
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                        </button>
+
+                        <!-- 用户菜单 -->
+                        <div class="flex items-center space-x-3">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                                 alt="用户头像" class="w-8 h-8 fluent-avatar">
+                            <span class="text-sm font-medium text-gray-900">张管理员</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 主要内容 -->
+            <main class="p-8">
+                <!-- 统计卡片 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- 今日访客 -->
+                    <div class="fluent-stat-card p-6 fluent-reveal">
+                        <div class="flex items-start justify-between relative z-10">
+                            <div>
+                                <p class="text-blue-100 text-sm font-medium mb-1">今日访客</p>
+                                <p class="text-3xl font-bold mb-2">42</p>
+                                <div class="flex items-center text-sm text-blue-100">
+                                    <i class="fas fa-trending-up mr-2"></i>
+                                    <span>+12% 比昨日</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-friends text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 待审批 -->
+                    <div class="fluent-stat-card orange p-6 fluent-reveal">
+                        <div class="flex items-start justify-between relative z-10">
+                            <div>
+                                <p class="text-orange-100 text-sm font-medium mb-1">待审批</p>
+                                <p class="text-3xl font-bold mb-2">8</p>
+                                <div class="flex items-center text-sm text-orange-100">
+                                    <i class="fas fa-clock mr-2"></i>
+                                    <span>需要处理</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-hourglass-half text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 已签到 -->
+                    <div class="fluent-stat-card green p-6 fluent-reveal">
+                        <div class="flex items-start justify-between relative z-10">
+                            <div>
+                                <p class="text-green-100 text-sm font-medium mb-1">已签到</p>
+                                <p class="text-3xl font-bold mb-2">28</p>
+                                <div class="flex items-center text-sm text-green-100">
+                                    <i class="fas fa-check mr-2"></i>
+                                    <span>在场访客</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-check-circle text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 本月访客 -->
+                    <div class="fluent-stat-card purple p-6 fluent-reveal">
+                        <div class="flex items-start justify-between relative z-10">
+                            <div>
+                                <p class="text-purple-100 text-sm font-medium mb-1">本月访客</p>
+                                <p class="text-3xl font-bold mb-2">1,247</p>
+                                <div class="flex items-center text-sm text-purple-100">
+                                    <i class="fas fa-calendar mr-2"></i>
+                                    <span>月度统计</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-calendar-alt text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图表区域 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- 访客趋势图 -->
+                    <div class="fluent-chart-container p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">访客趋势分析</h3>
+                            <div class="flex space-x-2">
+                                <button class="fluent-button">7天</button>
+                                <button class="fluent-button-secondary">30天</button>
+                                <button class="fluent-button-secondary">90天</button>
+                            </div>
+                        </div>
+                        <div style="height: 280px;">
+                            <canvas id="fluentVisitorTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 部门分布图 -->
+                    <div class="fluent-chart-container p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">部门访客分布</h3>
+                            <button class="fluent-button-secondary">
+                                <i class="fas fa-download mr-2"></i>
+                                导出数据
+                            </button>
+                        </div>
+                        <div style="height: 280px;">
+                            <canvas id="fluentDepartmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据表格和侧边栏 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- 最近访客表格 -->
+                    <div class="lg:col-span-2 fluent-card p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">最近访客记录</h3>
+                            <a href="visitor-list.html" class="text-blue-600 hover:text-blue-800 font-medium">查看全部记录</a>
+                        </div>
+                        <div class="fluent-table">
+                            <table class="w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="text-left">访客信息</th>
+                                        <th class="text-left">公司</th>
+                                        <th class="text-left">被访人</th>
+                                        <th class="text-left">时间</th>
+                                        <th class="text-left">状态</th>
+                                        <th class="text-left">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 fluent-avatar mr-3">
+                                                <span class="font-medium">李先生</span>
+                                            </div>
+                                        </td>
+                                        <td>腾讯科技</td>
+                                        <td>张经理</td>
+                                        <td>09:30</td>
+                                        <td><span class="fluent-tag fluent-tag-success">已签到</span></td>
+                                        <td>
+                                            <button class="fluent-button-secondary text-sm">查看详情</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 fluent-avatar mr-3">
+                                                <span class="font-medium">王女士</span>
+                                            </div>
+                                        </td>
+                                        <td>阿里巴巴</td>
+                                        <td>李总监</td>
+                                        <td>10:15</td>
+                                        <td><span class="fluent-tag fluent-tag-warning">待签到</span></td>
+                                        <td>
+                                            <button class="fluent-button-secondary text-sm">查看详情</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center">
+                                                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" 
+                                                     alt="访客头像" class="w-8 h-8 fluent-avatar mr-3">
+                                                <span class="font-medium">张总</span>
+                                            </div>
+                                        </td>
+                                        <td>字节跳动</td>
+                                        <td>王CEO</td>
+                                        <td>14:00</td>
+                                        <td><span class="fluent-tag fluent-tag-error">待审批</span></td>
+                                        <td>
+                                            <button class="fluent-button text-sm">立即审批</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 侧边栏 -->
+                    <div class="space-y-6">
+                        <!-- 快速操作 -->
+                        <div class="fluent-card p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">快速操作</h3>
+                            <div class="space-y-3">
+                                <button class="fluent-button w-full fluent-reveal">
+                                    <i class="fas fa-user-plus mr-2"></i>
+                                    新增访客
+                                </button>
+                                <button class="fluent-button-secondary w-full fluent-reveal">
+                                    <i class="fas fa-qrcode mr-2"></i>
+                                    扫码签到
+                                </button>
+                                <button class="fluent-button-secondary w-full fluent-reveal">
+                                    <i class="fas fa-file-export mr-2"></i>
+                                    导出报表
+                                </button>
+                                <button class="fluent-button-secondary w-full fluent-reveal">
+                                    <i class="fas fa-cog mr-2"></i>
+                                    系统设置
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 待办事项 -->
+                        <div class="fluent-card p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">待办事项</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-start p-3 rounded-lg bg-red-50 border-l-4 border-red-500">
+                                    <div class="w-2 h-2 bg-red-500 rounded-full mt-2 mr-3"></div>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-gray-900">紧急访客审批</div>
+                                        <div class="text-sm text-gray-600">华为CEO访问申请</div>
+                                        <div class="text-xs text-red-600 mt-1">30分钟前</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-start p-3 rounded-lg bg-orange-50 border-l-4 border-orange-500">
+                                    <div class="w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3"></div>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-gray-900">访客信息更新</div>
+                                        <div class="text-sm text-gray-600">5位访客信息待确认</div>
+                                        <div class="text-xs text-orange-600 mt-1">1小时前</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-start p-3 rounded-lg bg-blue-50 border-l-4 border-blue-500">
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3"></div>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-gray-900">系统维护通知</div>
+                                        <div class="text-sm text-gray-600">今晚22:00-24:00</div>
+                                        <div class="text-xs text-blue-600 mt-1">2小时前</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 系统状态 -->
+                        <div class="fluent-card p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">系统状态</h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">服务器状态</span>
+                                    <div class="flex items-center">
+                                        <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                        <span class="text-green-600 font-medium">正常运行</span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">数据库连接</span>
+                                    <div class="flex items-center">
+                                        <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                        <span class="text-green-600 font-medium">连接正常</span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">在线用户</span>
+                                    <span class="font-medium">24人</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">存储使用率</span>
+                                    <span class="font-medium">78%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                    <div class="bg-blue-500 h-2 rounded-full" style="width: 78%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 图表初始化脚本 -->
+    <script>
+        // Fluent Design 风格访客趋势图
+        const fluentVisitorTrendCtx = document.getElementById('fluentVisitorTrendChart').getContext('2d');
+        new Chart(fluentVisitorTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                datasets: [{
+                    label: '访客数量',
+                    data: [32, 45, 38, 52, 49, 28, 35],
+                    borderColor: '#0078d4',
+                    backgroundColor: 'rgba(0, 120, 212, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#0078d4',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 3,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f3f2f1'
+                        },
+                        ticks: {
+                            color: '#605e5c',
+                            font: {
+                                family: 'Segoe UI, sans-serif'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#605e5c',
+                            font: {
+                                family: 'Segoe UI, sans-serif'
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Fluent Design 风格部门分布图
+        const fluentDepartmentCtx = document.getElementById('fluentDepartmentChart').getContext('2d');
+        new Chart(fluentDepartmentCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['技术部', '市场部', '销售部', '人事部', '财务部'],
+                datasets: [{
+                    data: [35, 25, 20, 12, 8],
+                    backgroundColor: [
+                        '#0078d4',
+                        '#107c10',
+                        '#ff8c00',
+                        '#d13438',
+                        '#8764b8'
+                    ],
+                    borderWidth: 0,
+                    cutout: '65%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            color: '#323130',
+                            font: {
+                                family: 'Segoe UI, sans-serif',
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Fluent Reveal 效果
+        document.querySelectorAll('.fluent-reveal').forEach(element => {
+            element.addEventListener('mousemove', (e) => {
+                const rect = element.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                element.style.setProperty('--x', x + '%');
+                element.style.setProperty('--y', y + '%');
+            });
+        });
+    </script>
+</body>
+</html> 
