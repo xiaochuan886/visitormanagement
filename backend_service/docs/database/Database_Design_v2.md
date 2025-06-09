@@ -854,29 +854,372 @@ CREATE TRIGGER auto_update_visitor_status_trigger
 
 ## 📈 优化视图
 
+### 视图概述
+
+数据库中实现了4个优化视图，提供复杂查询的简化接口和预计算的统计信息，显著提升查询性能和开发效率。
+
+```mermaid
+graph TB
+    subgraph "业务查询视图"
+        VD[visitor_details<br/>访客详情视图]
+    end
+    
+    subgraph "统计分析视图"
+        DS[department_stats<br/>部门统计视图]
+        EVS[employee_visitor_stats<br/>员工访客统计视图]
+        VSS[visitor_status_stats<br/>访客状态统计视图]
+    end
+    
+    subgraph "基础数据表"
+        V[visitors]
+        E[employees]
+        D[departments]
+        S[sites]
+        DES[designations]
+    end
+    
+    %% 视图依赖关系
+    V --> VD
+    E --> VD
+    D --> VD
+    S --> VD
+    DES --> VD
+    
+    D --> DS
+    S --> DS
+    E --> DS
+    V --> DS
+    
+    E --> EVS
+    D --> EVS
+    V --> EVS
+    
+    V --> VSS
+    
+    %% 样式定义
+    classDef queryView fill:#e3f2fd
+    classDef statView fill:#f1f8e9
+    classDef baseTable fill:#fff3e0
+    
+    class VD queryView
+    class DS,EVS,VSS statView
+    class V,E,D,S,DES baseTable
+```
+
 ### 1. visitor_details - 访客详情视图 ⭐ 已实施
-提供访客完整信息，包含关联的员工、部门、站点信息
+
+**用途**: 提供访客完整信息的一站式查询，包含关联的员工、部门、站点、职位等详细信息
+
+**功能特性**:
+- 聚合访客的完整业务信息
+- 减少多表联接查询的复杂度
+- 提供标准化的访客数据视图
+- 支持前端页面的快速数据加载
+
+```sql
+CREATE VIEW visitor_details AS
+SELECT 
+    -- 访客基础信息
+    v.pass_code,
+    v.name,
+    v.email,
+    v.phone_number,
+    v.identification_no,
+    v.license_plate_number,
+    v.address,
+    v.gender,
+    v.company_name,
+    v.purpose,
+    v.comment,
+    v.designation_id,
+    v.employee_id,
+    v.checkin_date,
+    v.checkout_date,
+    v.expected_date,
+    v.expected_time,
+    v.avatar,
+    v.trip_code,
+    v.health_code,
+    v.qr_code,
+    v.nucleic_acid_test_report,
+    v.privacy_policy,
+    v.promise,
+    v.status,
+    v.approved,
+    v.approval_outcome,
+    v.approval_comment,
+    v.site_id,
+    v.survey_response_value,
+    v.tenant_id,
+    v.created_by,
+    v.updated_by,
+    v.is_deleted,
+    v.deleted_at,
+    v.deleted_by,
+    v.id,
+    v.created_at,
+    v.updated_at,
+    
+    -- 接待员工信息
+    e.name AS host_employee_name,
+    e.email AS host_employee_email,
+    e.phone_number AS host_employee_phone,
+    e.position AS host_employee_position,
+    
+    -- 部门信息
+    d.name AS department_name,
+    
+    -- 站点信息
+    s.name AS site_name,
+    s.address AS site_address,
+    
+    -- 职位信息
+    des.name AS designation_name,
+    des.level AS designation_level
+
+FROM visitors v
+LEFT JOIN employees e ON v.employee_id = e.id
+LEFT JOIN departments d ON e.department_id = d.id
+LEFT JOIN sites s ON v.site_id = s.id
+LEFT JOIN designations des ON v.designation_id = des.id;
+```
+
+**使用场景**:
+- 访客详情页面展示
+- 访客列表页面数据加载
+- 导出访客信息报表
+- API接口数据返回
+
+**性能优化**:
+- 基于基础表的索引优化
+- 减少应用层的数据拼接逻辑
+- 支持条件过滤下推
 
 ### 2. department_stats - 部门统计视图 ⭐ 已实施
-提供部门的员工数量、访客统计等信息
+
+**用途**: 提供部门维度的统计信息，包括员工数量、访客统计等关键指标
+
+**功能特性**:
+- 部门员工统计
+- 部门当日访客统计
+- 部门待审批访客统计
+- 支持管理驾驶舱数据展示
+
+```sql
+CREATE VIEW department_stats AS
+SELECT 
+    d.id,
+    d.name,
+    d.tenant_id,
+    s.name AS site_name,
+    
+    -- 活跃员工数量
+    COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'active') AS active_employee_count,
+    
+    -- 今日访客数量
+    COUNT(DISTINCT v.id) FILTER (WHERE DATE(v.created_at) = CURRENT_DATE) AS visitor_count_today,
+    
+    -- 待审批访客数量
+    COUNT(DISTINCT v.id) FILTER (WHERE v.status = 'pending') AS pending_visitor_count
+
+FROM departments d
+LEFT JOIN sites s ON d.site_id = s.id
+LEFT JOIN employees e ON d.id = e.department_id
+LEFT JOIN visitors v ON e.id = v.employee_id
+GROUP BY d.id, d.name, d.tenant_id, s.name;
+```
+
+**统计指标**:
+- `active_employee_count`: 部门活跃员工数量
+- `visitor_count_today`: 今日访客数量
+- `pending_visitor_count`: 待审批访客数量
+
+**使用场景**:
+- 管理层统计报表
+- 部门工作量分析
+- 资源配置决策支持
+- 实时监控看板
 
 ### 3. employee_visitor_stats - 员工访客统计视图 ⭐ 已实施
-提供员工的访客接待统计信息
+
+**用途**: 提供员工维度的访客接待统计信息，用于个人工作量分析和绩效评估
+
+**功能特性**:
+- 员工访客接待总量统计
+- 按状态分类的访客统计
+- 今日访客量统计
+- 支持员工绩效分析
+
+```sql
+CREATE VIEW employee_visitor_stats AS
+SELECT 
+    e.id,
+    e.name,
+    e.employee_id,
+    e.tenant_id,
+    d.name AS department_name,
+    
+    -- 总访客数量
+    COUNT(v.id) AS total_visitors,
+    
+    -- 待审批访客数量
+    COUNT(v.id) FILTER (WHERE v.status = 'pending') AS pending_visitors,
+    
+    -- 已审批访客数量
+    COUNT(v.id) FILTER (WHERE v.status = 'approved') AS approved_visitors,
+    
+    -- 今日访客数量
+    COUNT(v.id) FILTER (WHERE DATE(v.created_at) = CURRENT_DATE) AS today_visitors
+
+FROM employees e
+LEFT JOIN departments d ON e.department_id = d.id
+LEFT JOIN visitors v ON e.id = v.employee_id
+WHERE e.status = 'active'
+GROUP BY e.id, e.name, e.employee_id, e.tenant_id, d.name;
+```
+
+**统计指标**:
+- `total_visitors`: 员工接待访客总数
+- `pending_visitors`: 待审批访客数量
+- `approved_visitors`: 已审批访客数量
+- `today_visitors`: 今日访客数量
+
+**使用场景**:
+- 员工工作量统计
+- 访客接待绩效评估
+- 个人工作台数据展示
+- 团队协作分析
 
 ### 4. visitor_status_stats - 访客状态统计视图 ⭐ 已实施
+
+**用途**: 提供访客状态维度的统计分析，支持业务运营监控和决策分析
+
+**功能特性**:
+- 多时间维度统计（今日、本周、本月）
+- 按租户隔离的状态统计
+- 实时数据更新
+- 支持趋势分析
+
 ```sql
 CREATE VIEW visitor_status_stats AS
 SELECT 
     tenant_id,
     status,
-    COUNT(*) as count,
-    COUNT(*) FILTER (WHERE DATE(created_at) = CURRENT_DATE) as today_count,
-    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '7 days') as week_count,
-    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '30 days') as month_count
+    
+    -- 总数量
+    COUNT(*) AS count,
+    
+    -- 今日数量
+    COUNT(*) FILTER (WHERE DATE(created_at) = CURRENT_DATE) AS today_count,
+    
+    -- 本周数量
+    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '7 days') AS week_count,
+    
+    -- 本月数量
+    COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE - INTERVAL '30 days') AS month_count
+
 FROM visitors 
 WHERE NOT is_deleted 
 GROUP BY tenant_id, status
 ORDER BY tenant_id, status;
+```
+
+**统计维度**:
+- `count`: 状态总数量
+- `today_count`: 今日该状态数量
+- `week_count`: 近7天该状态数量
+- `month_count`: 近30天该状态数量
+
+**支持的状态**:
+- `pending`: 待审批
+- `approved`: 已审批
+- `rejected`: 已拒绝
+- `checked_in`: 已签到
+- `checked_out`: 已签出
+- `cancelled`: 已取消
+- `expired`: 已过期
+
+**使用场景**:
+- 业务运营监控
+- 访客流量趋势分析
+- 状态转化率分析
+- 管理决策支持
+
+### 视图性能优化
+
+**索引支持**:
+所有视图都基于已优化的基础表索引，确保查询性能：
+- 访客表的复合索引支持状态和时间查询
+- 员工表的部门索引支持聚合查询
+- 多租户索引确保数据隔离性能
+
+**查询优化**:
+- 使用LEFT JOIN避免数据丢失
+- 合理使用FILTER子句提升聚合性能
+- 基于实际查询模式设计索引策略
+
+**维护建议**:
+- 定期分析视图查询计划
+- 监控视图查询性能
+- 根据业务变化调整视图结构
+
+### 实际应用示例
+
+#### 1. 访客详情查询
+```sql
+-- 查询特定访客的完整信息
+SELECT * FROM visitor_details 
+WHERE id = 123 AND tenant_id = 'tenant_001';
+
+-- 查询今日待审批访客
+SELECT * FROM visitor_details 
+WHERE status = 'pending' 
+AND DATE(created_at) = CURRENT_DATE
+AND tenant_id = 'tenant_001';
+```
+
+#### 2. 部门统计报表
+```sql
+-- 查询所有部门今日访客统计
+SELECT 
+    name AS 部门名称,
+    site_name AS 站点名称,
+    active_employee_count AS 员工数量,
+    visitor_count_today AS 今日访客,
+    pending_visitor_count AS 待审批访客
+FROM department_stats 
+WHERE tenant_id = 'tenant_001'
+ORDER BY visitor_count_today DESC;
+```
+
+#### 3. 员工工作量分析
+```sql
+-- 查询访客接待量最高的员工
+SELECT 
+    name AS 员工姓名,
+    employee_id AS 工号,
+    department_name AS 部门,
+    total_visitors AS 总访客量,
+    today_visitors AS 今日访客
+FROM employee_visitor_stats 
+WHERE tenant_id = 'tenant_001'
+ORDER BY total_visitors DESC
+LIMIT 10;
+```
+
+#### 4. 状态趋势分析
+```sql
+-- 查询各状态的趋势数据
+SELECT 
+    status AS 状态,
+    count AS 总数,
+    today_count AS 今日,
+    week_count AS 本周,
+    month_count AS 本月,
+    ROUND(week_count::DECIMAL / NULLIF(month_count, 0) * 100, 2) AS 周占月百分比
+FROM visitor_status_stats 
+WHERE tenant_id = 'tenant_001'
+ORDER BY count DESC;
 ```
 
 ---

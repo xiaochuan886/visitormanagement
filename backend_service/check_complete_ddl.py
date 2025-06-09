@@ -105,6 +105,41 @@ try:
     for func_name, func_type in functions:
         print(f'- {func_name} ({func_type})')
     
+    # 检查用户认证相关信息
+    print("\n=== 用户认证检查 ===")
+    
+    # 检查是否有用户表
+    cursor.execute("""
+        SELECT tablename FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename LIKE '%user%';
+    """)
+    user_tables = cursor.fetchall()
+    print(f'用户相关表: {user_tables}')
+    
+    # 检查员工表是否有密码字段
+    cursor.execute("""
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'employees' 
+        AND (column_name LIKE '%password%' OR column_name LIKE '%hash%');
+    """)
+    password_fields = cursor.fetchall()
+    print(f'员工表密码字段: {password_fields}')
+    
+    # 检查员工表的认证相关字段
+    cursor.execute("""
+        SELECT column_name, data_type, is_nullable, column_default
+        FROM information_schema.columns 
+        WHERE table_name = 'employees'
+        AND column_name IN ('email', 'username', 'related_account_id', 'status')
+        ORDER BY ordinal_position;
+    """)
+    auth_fields = cursor.fetchall()
+    print('\n员工表认证相关字段:')
+    for field in auth_fields:
+        print(f'  {field[0]}: {field[1]} (nullable: {field[2]}, default: {field[3]})')
+    
     cursor.close()
     conn.close()
     print('\n数据库完整信息获取完成')
