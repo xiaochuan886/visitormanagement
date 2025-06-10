@@ -1,0 +1,398 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 安全开发标准 - Security Standards
+
+## 规则概述
+本规则确保访客管理系统的安全开发实践，涵盖JWT认证、数据验证、权限控制和安全配置。适用于所有涉及用户认证、数据处理和API安全的开发任务。
+
+## 认证与授权架构
+
+### JWT令牌管理
+**核心实现**: [auth.py](mdc:backend_service/app/api/routes/auth.py) - 认证路由
+**依赖管理**: [dependencies](mdc:backend_service/app/api/dependencies/) - 认证依赖注入
+
+#### 令牌结构标准
+```python
+# JWT Payload 必需字段
+{
+    "sub": "user_id",           # 用户ID (必需)
+    "tenant_id": "company_a",   # 租户ID (必需)
+    "username": "admin",        # 用户名 (必需)
+    "roles": ["admin", "user"], # 角色列表 (必需)
+    "permissions": [            # 权限列表 (必需)
+        "visitor:read",
+        "visitor:write",
+        "employee:read"
+    ],
+    "exp": 1640995200,         # 过期时间 (必需)
+    "iat": 1640908800,         # 签发时间 (必需)
+    "type": "access"           # 令牌类型 (access/refresh)
+}
+```
+
+#### 令牌生成规范
+```python
+# ✅ 正确示例 - 安全的令牌生成
+class JWTHandler:
+    def create_access_token(
+        self, 
+        user_id: str, 
+        username: str,
+        tenant_id: str,
+        roles: List[str],
+        permissions: List[str]
+    ) -> str:
+        payload = {
+            "sub": user_id,
+            "tenant_id": tenant_id,
+            "username": username,
+            "roles": roles,
+            "permissions": permissions,
+            "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            "iat": datetime.utcnow(),
+            "type": "access"
+        }
+        return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    
+    def create_refresh_token(self, user_id: str, tenant_id: str) -> str:
+        payload = {
+            "sub": user_id,
+            "tenant_id": tenant_id,
+            "exp": datetime.utcnow() + timedelta(days=7),
+            "iat": datetime.utcnow(),
+            "type": "refresh"
+        }
+        return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+# ❌ 错误示例 - 不安全的令牌
+def create_token(user_id: str) -> str:
+    # 违反：缺少必要字段、过期时间、租户隔离
+    payload = {"user_id": user_id}
+    return jwt.encode(payload, "weak_key", algorithm="HS256")
+```
+
+### 多租户安全隔离
+
+#### 租户上下文注入
+```python
+# ✅ 正确示例 - 安全的租户注入
+async def get_current_tenant(
+    token: str = Depends(oauth2_scheme),
+    jwt_handler: JWTHandler = Depends(get_jwt_handler)
+) -> str:
+    """获取当前请求的租户ID"""
+    try:
+        payload = jwt_handler.decode_token(token)
+        tenant_id = payload.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(401, "令牌缺少租户信息")
+        return tenant_id
+    except JWTError:
+        raise HTTPException(401, "无效的认证令牌")
+
+# ✅ 正确示例 - 数据查询自动注入租户过滤
+async def get_visitors(
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_database)
+) -> List[VisitorResponse]:
+    result = await db.execute(
+        select(Visitor).where(Visitor.tenant_id == tenant_id)  # 强制租户过滤
+    )
+    return [VisitorResponse.from_model(v) for v in result.scalars().all()]
+
+# ❌ 错误示例 - 缺少租户隔离
+async def get_visitors(db: AsyncSession = Depends(get_database)):
+    # 违反：没有租户过滤，存在数据泄露风险
+    result = await db.execute(select(Visitor))
+    return result.scalars().all()
+```
+
+## 权限控制系统
+
+### 基于角色的访问控制 (RBAC)
+```python
+# ✅ 正确示例 - 权限检查装饰器
+def require_permission(permission: str):
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            # 从当前用户上下文获取权限
+            current_user = kwargs.get('current_user')
+            if not current_user or permission not in current_user.permissions:
+                raise HTTPException(403, f"缺少权限: {permission}")
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# ✅ 正确示例 - API权限控制
+@router.post("/visitors")
+@require_permission("visitor:create")
+async def create_visitor(
+    visitor_data: VisitorCreateRequest,
+    current_user: UserContext = Depends(get_current_user),
+    tenant_id: str = Depends(get_current_tenant)
+) -> VisitorResponse:
+    # 权限已验证，安全执行业务逻辑
+    pass
+
+# ❌ 错误示例 - 缺少权限检查
+@router.delete("/visitors/{visitor_id}")
+async def delete_visitor(visitor_id: int):
+    # 违反：删除操作没有权限检查
+    pass
+```
+
+### 权限层级定义
+```python
+# 权限命名规范: resource:action
+PERMISSIONS = {
+    # 访客管理权限
+    "visitor:read",      # 查看访客信息
+    "visitor:create",    # 创建访客
+    "visitor:update",    # 更新访客信息
+    "visitor:delete",    # 删除访客
+    "visitor:approve",   # 审批访客
+    
+    # 员工管理权限
+    "employee:read",     # 查看员工信息
+    "employee:create",   # 创建员工
+    "employee:update",   # 更新员工信息
+    "employee:delete",   # 删除员工
+    
+    # 系统管理权限
+    "system:admin",      # 系统管理员
+    "tenant:admin",      # 租户管理员
+}
+
+# 角色权限映射
+ROLE_PERMISSIONS = {
+    "super_admin": [
+        "visitor:read", "visitor:create", "visitor:update", "visitor:delete", "visitor:approve",
+        "employee:read", "employee:create", "employee:update", "employee:delete",
+        "system:admin", "tenant:admin"
+    ],
+    "admin": [
+        "visitor:read", "visitor:create", "visitor:update", "visitor:approve",
+        "employee:read", "employee:create", "employee:update"
+    ],
+    "user": [
+        "visitor:read", "visitor:create"
+    ],
+    "guest": [
+        "visitor:read"
+    ]
+}
+```
+
+## 数据验证与清理
+
+### 输入验证标准
+```python
+# ✅ 正确示例 - 严格的数据验证
+class VisitorCreateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50, regex=r"^[\u4e00-\u9fa5a-zA-Z\s]+$")
+    phone: str = Field(..., regex=r"^1[3-9]\d{9}$")  # 中国手机号格式
+    email: EmailStr = Field(...)  # 使用EmailStr确保邮箱格式
+    company: str = Field(..., min_length=2, max_length=100)
+    id_number: str = Field(..., regex=r"^\d{15}|\d{18}$")  # 身份证号格式
+    license_plate: Optional[str] = Field(None, regex=r"^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领A-Z]{1}[A-Z]{1}[A-Z0-9]{4}[A-Z0-9挂学警港澳]{1}$")
+    
+    @validator('name')
+    def validate_name(cls, v):
+        # 清理输入，防止XSS攻击
+        return html.escape(v.strip())
+    
+    @validator('company')
+    def validate_company(cls, v):
+        return html.escape(v.strip())
+
+# ❌ 错误示例 - 缺少验证
+class UnsafeVisitorRequest(BaseModel):
+    name: str  # 没有长度限制和格式验证
+    phone: str  # 没有格式验证
+    email: str  # 没有邮箱格式验证
+    # 存在注入攻击风险
+```
+
+### SQL注入防护
+```python
+# ✅ 正确示例 - 使用ORM参数化查询
+async def get_visitors_by_name(db: AsyncSession, name: str, tenant_id: str):
+    result = await db.execute(
+        select(Visitor).where(
+            and_(
+                Visitor.name.like(f"%{name}%"),  # SQLAlchemy自动转义
+                Visitor.tenant_id == tenant_id
+            )
+        )
+    )
+    return result.scalars().all()
+
+# ❌ 错误示例 - SQL注入风险
+async def unsafe_query(db: AsyncSession, name: str):
+    # 违反：直接字符串拼接，存在SQL注入风险
+    query = f"SELECT * FROM visitors WHERE name LIKE '%{name}%'"
+    result = await db.execute(text(query))
+    return result.fetchall()
+```
+
+## 密码安全
+
+### 密码哈希标准
+```python
+# ✅ 正确示例 - 安全的密码处理
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class PasswordHandler:
+    @staticmethod
+    def hash_password(password: str) -> str:
+        """使用bcrypt哈希密码"""
+        return pwd_context.hash(password)
+    
+    @staticmethod
+    def verify_password(plain_password: str, hashed_password: str) -> bool:
+        """验证密码"""
+        return pwd_context.verify(plain_password, hashed_password)
+
+# 密码强度要求
+class PasswordValidator:
+    @staticmethod
+    def validate_strength(password: str) -> bool:
+        """验证密码强度"""
+        if len(password) < 8:
+            raise ValueError("密码长度不能少于8位")
+        
+        if not re.search(r"[A-Z]", password):
+            raise ValueError("密码必须包含大写字母")
+        
+        if not re.search(r"[a-z]", password):
+            raise ValueError("密码必须包含小写字母")
+        
+        if not re.search(r"[0-9]", password):
+            raise ValueError("密码必须包含数字")
+        
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            raise ValueError("密码必须包含特殊字符")
+        
+        return True
+
+# ❌ 错误示例 - 不安全的密码处理
+def unsafe_password_hash(password: str) -> str:
+    # 违反：使用MD5或SHA1，没有盐值
+    return hashlib.md5(password.encode()).hexdigest()
+```
+
+## 安全配置
+
+### CORS配置
+```python
+# ✅ 正确示例 - 安全的CORS配置
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_HOSTS,  # 明确指定允许的域名
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # 明确指定允许的方法
+    allow_headers=["Authorization", "Content-Type"],  # 明确指定允许的头部
+    max_age=600  # 预检请求缓存时间
+)
+
+# ❌ 错误示例 - 不安全的CORS配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 违反：允许所有域名
+    allow_methods=["*"],  # 违反：允许所有方法
+    allow_headers=["*"]   # 违反：允许所有头部
+)
+```
+
+### 环境变量安全
+```python
+# ✅ 正确示例 - 安全的配置管理
+class Settings(BaseSettings):
+    SECRET_KEY: str = Field(..., min_length=32)  # 强制最小长度
+    DATABASE_URL: str = Field(..., env="DATABASE_URL")
+    REDIS_URL: str = Field(..., env="REDIS_URL")
+    
+    # 敏感配置禁止默认值
+    MAIL_PASSWORD: str = Field(..., env="MAIL_PASSWORD")
+    
+    # 开发环境标识
+    DEBUG: bool = Field(False, env="DEBUG")
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+# ❌ 错误示例 - 不安全的配置
+SECRET_KEY = "weak_key_123"  # 违反：硬编码敏感信息
+DATABASE_URL = "postgresql://admin:password@localhost/db"  # 违反：明文密码
+```
+
+## 日志与审计
+
+### 安全事件记录
+```python
+# ✅ 正确示例 - 安全审计日志
+import logging
+
+security_logger = logging.getLogger("security")
+
+class SecurityAuditService:
+    @staticmethod
+    async def log_login_attempt(username: str, ip_address: str, success: bool):
+        event_type = "LOGIN_SUCCESS" if success else "LOGIN_FAILED"
+        security_logger.info(
+            f"{event_type} - User: {username}, IP: {ip_address}, Time: {datetime.utcnow()}"
+        )
+    
+    @staticmethod
+    async def log_permission_denied(user_id: str, resource: str, action: str):
+        security_logger.warning(
+            f"PERMISSION_DENIED - User: {user_id}, Resource: {resource}, Action: {action}"
+        )
+    
+    @staticmethod
+    async def log_data_access(user_id: str, tenant_id: str, resource: str):
+        security_logger.info(
+            f"DATA_ACCESS - User: {user_id}, Tenant: {tenant_id}, Resource: {resource}"
+        )
+```
+
+## 检查清单
+
+### 认证安全检查
+- [ ] JWT令牌是否包含所有必需字段？
+- [ ] 令牌过期时间是否合理？
+- [ ] 是否实施了租户隔离？
+- [ ] 刷新令牌机制是否安全？
+- [ ] 登录失败是否有限制机制？
+
+### 权限控制检查
+- [ ] 所有API端点是否有权限检查？
+- [ ] 权限粒度是否足够细致？
+- [ ] 角色权限映射是否正确？
+- [ ] 数据查询是否包含租户过滤？
+
+### 数据验证检查
+- [ ] 所有输入是否经过验证？
+- [ ] 是否防护了SQL注入攻击？
+- [ ] 是否防护了XSS攻击？
+- [ ] 敏感数据是否正确脱敏？
+
+### 配置安全检查
+- [ ] 敏感配置是否使用环境变量？
+- [ ] CORS配置是否足够严格？
+- [ ] HTTPS是否强制启用？
+- [ ] 错误信息是否泄露敏感信息？
+
+### 密码安全检查
+- [ ] 密码是否使用强哈希算法？
+- [ ] 是否实施了密码强度要求？
+- [ ] 是否有密码重置机制？
+- [ ] 是否记录了安全事件？

@@ -1,0 +1,461 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 访客管理领域 - Visitor Domain Rules
+
+## 规则概述
+本规则定义访客管理业务领域的核心逻辑、状态流转规则和二维码系统实现。适用于所有访客相关的业务功能开发，确保业务规则的一致性和完整性。
+
+## 业务领域架构
+
+### 核心实体文件
+- **访客实体**: [entities/visitor.py](mdc:backend_service/app/domain/entities/visitor.py) - 访客领域实体
+- **业务枚举**: [enums.py](mdc:backend_service/app/domain/enums.py) - 访客状态和业务枚举
+- **领域事件**: [events/](mdc:backend_service/app/domain/events) - 访客相关的领域事件
+- **访客路由**: [routes/visitors.py](mdc:backend_service/app/api/routes/visitors.py) - 访客API接口
+
+## 访客状态管理
+
+### 状态流转规则
+```python
+# 访客状态枚举定义
+class VisitorStatus(str, Enum):
+    PENDING = "pending"           # 待审批
+    APPROVED = "approved"         # 已审批
+    CHECKED_IN = "checked_in"     # 已签到
+    CHECKED_OUT = "checked_out"   # 已签出
+    CANCELLED = "cancelled"       # 已取消
+    EXPIRED = "expired"           # 已过期
+    REJECTED = "rejected"         # 已拒绝
+
+# 状态流转矩阵 (from_status -> allowed_to_status)
+VISITOR_STATUS_TRANSITIONS = {
+    VisitorStatus.PENDING: [
+        VisitorStatus.APPROVED,
+        VisitorStatus.REJECTED,
+        VisitorStatus.CANCELLED
+    ],
+    VisitorStatus.APPROVED: [
+        VisitorStatus.CHECKED_IN,
+        VisitorStatus.CANCELLED,
+        VisitorStatus.EXPIRED
+    ],
+    VisitorStatus.CHECKED_IN: [
+        VisitorStatus.CHECKED_OUT
+    ],
+    VisitorStatus.CHECKED_OUT: [],  # 终态
+    VisitorStatus.CANCELLED: [],    # 终态
+    VisitorStatus.EXPIRED: [],      # 终态
+    VisitorStatus.REJECTED: []      # 终态
+}
+```
+
+### 状态变更业务逻辑
+```python
+# ✅ 正确示例 - 状态变更领域方法
+class Visitor:
+    def __init__(self, name: str, phone: str, company: str, visit_date: date):
+        self.name = self._validate_name(name)
+        self.phone = self._validate_phone(phone)
+        self.company = company
+        self.visit_date = visit_date
+        self.status = VisitorStatus.PENDING
+        self.created_at = datetime.utcnow()
+        self.qr_code = None
+        self.approval_notes = None
+    
+    def approve(self, approval_notes: Optional[str] = None) -> None:
+        """审批访客申请"""
+        if self.status != VisitorStatus.PENDING:
+            raise DomainException(f"只有待审批状态的访客才能被审批，当前状态: {self.status}")
+        
+        if self.visit_date < date.today():
+            raise DomainException("不能审批已过期的访客申请")
+        
+        self.status = VisitorStatus.APPROVED
+        self.approval_notes = approval_notes
+        self.approved_at = datetime.utcnow()
+        
+        # 触发领域事件
+        self._add_domain_event(VisitorApprovedEvent(visitor_id=self.id))
+    
+    def reject(self, rejection_reason: str) -> None:
+        """拒绝访客申请"""
+        if self.status != VisitorStatus.PENDING:
+            raise DomainException(f"只有待审批状态的访客才能被拒绝，当前状态: {self.status}")
+        
+        if not rejection_reason or len(rejection_reason.strip()) < 5:
+            raise DomainException("拒绝原因不能少于5个字符")
+        
+        self.status = VisitorStatus.REJECTED
+        self.rejection_reason = rejection_reason.strip()
+        self.rejected_at = datetime.utcnow()
+        
+        # 触发领域事件
+        self._add_domain_event(VisitorRejectedEvent(visitor_id=self.id, reason=rejection_reason))
+    
+    def check_in(self, device_id: Optional[str] = None) -> None:
+        """访客签到"""
+        if self.status != VisitorStatus.APPROVED:
+            raise DomainException(f"只有已审批的访客才能签到，当前状态: {self.status}")
+        
+        if self.visit_date != date.today():
+            raise DomainException("只能在访问日期当天签到")
+        
+        self.status = VisitorStatus.CHECKED_IN
+        self.checked_in_at = datetime.utcnow()
+        self.check_in_device = device_id
+        
+        # 触发领域事件
+        self._add_domain_event(VisitorCheckedInEvent(visitor_id=self.id, device_id=device_id))
+    
+    def check_out(self, device_id: Optional[str] = None) -> None:
+        """访客签出"""
+        if self.status != VisitorStatus.CHECKED_IN:
+            raise DomainException(f"只有已签到的访客才能签出，当前状态: {self.status}")
+        
+        visit_duration = datetime.utcnow() - self.checked_in_at
+        if visit_duration.total_seconds() < 60:  # 最少访问1分钟
+            raise DomainException("访问时长不能少于1分钟")
+        
+        self.status = VisitorStatus.CHECKED_OUT
+        self.checked_out_at = datetime.utcnow()
+        self.check_out_device = device_id
+        self.visit_duration = visit_duration
+        
+        # 触发领域事件
+        self._add_domain_event(VisitorCheckedOutEvent(visitor_id=self.id, duration=visit_duration))
+
+# ❌ 错误示例 - 在API层直接修改状态
+@router.post("/visitors/{visitor_id}/approve")
+async def approve_visitor(visitor_id: int):
+    # 违反：业务逻辑不应在API层实现
+    visitor = await db.get(Visitor, visitor_id)
+    visitor.status = "approved"  # 违反：直接修改状态，跳过业务验证
+    await db.commit()
+```
+
+## 二维码系统
+
+### 二维码生成规则
+```python
+# ✅ 正确示例 - 二维码生成领域逻辑
+import qrcode
+import uuid
+from datetime import datetime, timedelta
+
+class QRCodeGenerator:
+    @staticmethod
+    def generate_visitor_qr_code(visitor: Visitor) -> str:
+        """为已审批访客生成二维码"""
+        if visitor.status != VisitorStatus.APPROVED:
+            raise DomainException("只有已审批的访客才能生成二维码")
+        
+        # 生成唯一二维码内容
+        qr_data = {
+            "visitor_id": visitor.id,
+            "tenant_id": visitor.tenant_id,
+            "name": visitor.name,
+            "company": visitor.company,
+            "visit_date": visitor.visit_date.isoformat(),
+            "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
+            "token": str(uuid.uuid4())  # 防伪令牌
+        }
+        
+        # 生成二维码图片
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(json.dumps(qr_data))
+        qr.make(fit=True)
+        
+        # 转换为Base64字符串
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        qr_code_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        return qr_code_base64
+    
+    @staticmethod
+    def verify_qr_code(qr_data: str, tenant_id: str) -> dict:
+        """验证二维码有效性"""
+        try:
+            data = json.loads(qr_data)
+            
+            # 验证租户隔离
+            if data.get("tenant_id") != tenant_id:
+                raise DomainException("二维码租户不匹配")
+            
+            # 验证过期时间
+            expires_at = datetime.fromisoformat(data["expires_at"])
+            if expires_at < datetime.utcnow():
+                raise DomainException("二维码已过期")
+            
+            # 验证访问日期
+            visit_date = date.fromisoformat(data["visit_date"])
+            if visit_date != date.today():
+                raise DomainException("二维码不在有效访问日期")
+            
+            return data
+            
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            raise DomainException(f"二维码格式错误: {str(e)}")
+```
+
+### 访客验证流程
+```python
+# ✅ 正确示例 - 访客验证应用服务
+class VisitorCheckInService:
+    def __init__(self, visitor_repo: VisitorRepository, qr_service: QRCodeService):
+        self._visitor_repo = visitor_repo
+        self._qr_service = qr_service
+    
+    async def check_in_by_qr_code(
+        self, 
+        qr_data: str, 
+        tenant_id: str, 
+        device_id: str
+    ) -> VisitorDto:
+        """通过二维码签到"""
+        # 1. 验证二维码
+        qr_info = self._qr_service.verify_qr_code(qr_data, tenant_id)
+        
+        # 2. 获取访客实体
+        visitor = await self._visitor_repo.get_by_id(qr_info["visitor_id"], tenant_id)
+        if not visitor:
+            raise VisitorNotFound("访客不存在")
+        
+        # 3. 执行签到业务逻辑
+        visitor.check_in(device_id)
+        
+        # 4. 持久化变更
+        await self._visitor_repo.save(visitor)
+        
+        # 5. 记录设备事件
+        await self._device_service.record_check_in_event(device_id, visitor.id)
+        
+        return VisitorDto.from_entity(visitor)
+```
+
+## 访客数据验证
+
+### 字段验证规则
+```python
+# ✅ 正确示例 - 完整的字段验证
+class Visitor:
+    def _validate_name(self, name: str) -> str:
+        """验证访客姓名"""
+        if not name or not name.strip():
+            raise DomainException("访客姓名不能为空")
+        
+        clean_name = name.strip()
+        if len(clean_name) < 2:
+            raise DomainException("访客姓名长度不能少于2个字符")
+        
+        if len(clean_name) > 50:
+            raise DomainException("访客姓名长度不能超过50个字符")
+        
+        # 只允许中文、英文字母和空格
+        if not re.match(r"^[\u4e00-\u9fa5a-zA-Z\s]+$", clean_name):
+            raise DomainException("访客姓名只能包含中文、英文字母和空格")
+        
+        return clean_name
+    
+    def _validate_phone(self, phone: str) -> str:
+        """验证手机号码"""
+        if not phone or not phone.strip():
+            raise DomainException("手机号码不能为空")
+        
+        clean_phone = phone.strip()
+        
+        # 中国大陆手机号验证
+        if not re.match(r"^1[3-9]\d{9}$", clean_phone):
+            raise DomainException("请输入有效的中国大陆手机号码")
+        
+        return clean_phone
+    
+    def _validate_id_number(self, id_number: str) -> str:
+        """验证身份证号"""
+        if not id_number or not id_number.strip():
+            raise DomainException("身份证号不能为空")
+        
+        clean_id = id_number.strip().upper()
+        
+        # 18位身份证验证
+        if not re.match(r"^\d{17}[\dX]$", clean_id):
+            raise DomainException("请输入有效的18位身份证号码")
+        
+        # 校验码验证
+        if not self._validate_id_checksum(clean_id):
+            raise DomainException("身份证号码校验位错误")
+        
+        return clean_id
+    
+    def _validate_license_plate(self, license_plate: Optional[str]) -> Optional[str]:
+        """验证车牌号码"""
+        if not license_plate:
+            return None
+        
+        clean_plate = license_plate.strip().upper()
+        
+        # 中国车牌号验证
+        pattern = r"^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领A-Z]{1}[A-Z]{1}[A-Z0-9]{4}[A-Z0-9挂学警港澳]{1}$"
+        if not re.match(pattern, clean_plate):
+            raise DomainException("请输入有效的车牌号码")
+        
+        return clean_plate
+
+    def _validate_id_checksum(self, id_number: str) -> bool:
+        """验证身份证校验位"""
+        weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+        check_codes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+        
+        sum_value = sum(int(id_number[i]) * weights[i] for i in range(17))
+        check_index = sum_value % 11
+        
+        return id_number[17] == check_codes[check_index]
+```
+
+## 访客搜索和过滤
+
+### 查询构建器模式
+```python
+# ✅ 正确示例 - 访客查询构建器
+class VisitorQueryBuilder:
+    def __init__(self):
+        self._filters = []
+        self._tenant_id = None
+    
+    def with_tenant(self, tenant_id: str) -> "VisitorQueryBuilder":
+        """添加租户过滤（必需）"""
+        self._tenant_id = tenant_id
+        return self
+    
+    def with_status(self, status: VisitorStatus) -> "VisitorQueryBuilder":
+        """按状态过滤"""
+        self._filters.append(Visitor.status == status)
+        return self
+    
+    def with_date_range(self, start_date: date, end_date: date) -> "VisitorQueryBuilder":
+        """按访问日期范围过滤"""
+        self._filters.append(Visitor.visit_date >= start_date)
+        self._filters.append(Visitor.visit_date <= end_date)
+        return self
+    
+    def with_company(self, company: str) -> "VisitorQueryBuilder":
+        """按公司名称模糊搜索"""
+        self._filters.append(Visitor.company.ilike(f"%{company}%"))
+        return self
+    
+    def with_name(self, name: str) -> "VisitorQueryBuilder":
+        """按访客姓名模糊搜索"""
+        self._filters.append(Visitor.name.ilike(f"%{name}%"))
+        return self
+    
+    def build(self) -> Query:
+        """构建查询"""
+        if not self._tenant_id:
+            raise DomainException("查询必须包含租户ID")
+        
+        # 强制添加租户过滤
+        self._filters.append(Visitor.tenant_id == self._tenant_id)
+        
+        return select(Visitor).where(and_(*self._filters))
+
+# 使用示例
+query = (VisitorQueryBuilder()
+    .with_tenant(tenant_id)
+    .with_status(VisitorStatus.APPROVED)
+    .with_date_range(date.today(), date.today() + timedelta(days=7))
+    .build())
+```
+
+## 领域事件
+
+### 访客事件定义
+```python
+# ✅ 正确示例 - 访客领域事件
+@dataclass(frozen=True)
+class VisitorApprovedEvent:
+    """访客审批通过事件"""
+    visitor_id: int
+    tenant_id: str
+    approved_at: datetime
+    approved_by: str
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class VisitorCheckedInEvent:
+    """访客签到事件"""
+    visitor_id: int
+    tenant_id: str
+    device_id: Optional[str]
+    checked_in_at: datetime
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class VisitorCheckedOutEvent:
+    """访客签出事件"""
+    visitor_id: int
+    tenant_id: str
+    device_id: Optional[str]
+    visit_duration: timedelta
+    checked_out_at: datetime
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+# 事件发布器
+class DomainEventPublisher:
+    def __init__(self):
+        self._handlers = {}
+    
+    def register_handler(self, event_type: type, handler: callable):
+        """注册事件处理器"""
+        if event_type not in self._handlers:
+            self._handlers[event_type] = []
+        self._handlers[event_type].append(handler)
+    
+    async def publish(self, event: object):
+        """发布领域事件"""
+        event_type = type(event)
+        if event_type in self._handlers:
+            for handler in self._handlers[event_type]:
+                await handler(event)
+```
+
+## 检查清单
+
+### 业务逻辑检查
+- [ ] 状态变更是否通过领域方法执行？
+- [ ] 业务验证是否在领域层实现？
+- [ ] 状态流转是否符合业务规则？
+- [ ] 是否正确触发领域事件？
+
+### 数据验证检查
+- [ ] 所有字段是否有适当的验证规则？
+- [ ] 手机号、身份证、车牌号验证是否正确？
+- [ ] 是否防止了无效数据的产生？
+- [ ] 错误消息是否清晰易懂？
+
+### 二维码系统检查
+- [ ] 二维码生成是否包含防伪机制？
+- [ ] 二维码验证是否检查过期时间？
+- [ ] 是否实施了租户隔离验证？
+- [ ] 签到流程是否完整？
+
+### 查询功能检查
+- [ ] 所有查询是否包含租户过滤？
+- [ ] 查询构建器是否支持组合条件？
+- [ ] 分页和排序是否正确实现？
+- [ ] 性能敏感查询是否优化？
+
+### 安全性检查
+- [ ] 敏感操作是否有权限验证？
+- [ ] 数据访问是否遵循最小权限原则？
+- [ ] 用户输入是否经过清理和验证？
+- [ ] 业务异常是否得到适当处理？

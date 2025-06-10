@@ -1,0 +1,699 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 组织架构管理领域 - Organization Domain Rules
+
+## 规则概述
+本规则定义组织架构管理业务领域的核心逻辑，包括员工、部门、站点管理和组织关系维护。适用于所有组织架构相关的开发任务，确保组织数据的一致性和层次关系的正确性。
+
+## 组织领域架构
+
+### 核心实体文件
+- **员工实体**: [entities/employee.py](mdc:backend_service/app/domain/entities/employee.py) - 员工领域实体
+- **部门实体**: [entities/department.py](mdc:backend_service/app/domain/entities/department.py) - 部门领域实体
+- **站点实体**: [entities/site.py](mdc:backend_service/app/domain/entities/site.py) - 站点领域实体
+- **员工路由**: [routes/employees.py](mdc:backend_service/app/api/routes/employees.py) - 员工API接口
+- **站点路由**: [routes/sites.py](mdc:backend_service/app/api/routes/sites.py) - 站点API接口
+
+## 员工管理
+
+### 员工领域模型
+```python
+# ✅ 正确示例 - 员工领域实体
+class Employee:
+    def __init__(
+        self,
+        name: str,
+        employee_id: str,
+        email: str,
+        phone: str,
+        department_id: int,
+        position: str,
+        tenant_id: str
+    ):
+        self.name = self._validate_name(name)
+        self.employee_id = self._validate_employee_id(employee_id)
+        self.email = self._validate_email(email)
+        self.phone = self._validate_phone(phone)
+        self.department_id = department_id
+        self.position = self._validate_position(position)
+        self.tenant_id = tenant_id
+        self.is_active = True
+        self.hire_date = date.today()
+        self.created_at = datetime.utcnow()
+        self.manager_id = None
+        self.subordinates = []
+    
+    def assign_manager(self, manager: "Employee") -> None:
+        """分配直属上级"""
+        if manager.tenant_id != self.tenant_id:
+            raise DomainException("员工和上级必须属于同一租户")
+        
+        if manager.id == self.id:
+            raise DomainException("员工不能成为自己的上级")
+        
+        # 检查是否会形成循环管理关系
+        if self._would_create_cycle(manager):
+            raise DomainException("分配上级会形成循环管理关系")
+        
+        old_manager_id = self.manager_id
+        self.manager_id = manager.id
+        
+        # 触发管理关系变更事件
+        self._add_domain_event(EmployeeManagerChangedEvent(
+            employee_id=self.id,
+            tenant_id=self.tenant_id,
+            old_manager_id=old_manager_id,
+            new_manager_id=manager.id
+        ))
+    
+    def remove_manager(self) -> None:
+        """移除直属上级"""
+        if self.manager_id:
+            old_manager_id = self.manager_id
+            self.manager_id = None
+            
+            self._add_domain_event(EmployeeManagerChangedEvent(
+                employee_id=self.id,
+                tenant_id=self.tenant_id,
+                old_manager_id=old_manager_id,
+                new_manager_id=None
+            ))
+    
+    def change_department(self, new_department_id: int) -> None:
+        """变更部门"""
+        if new_department_id == self.department_id:
+            return
+        
+        old_department_id = self.department_id
+        self.department_id = new_department_id
+        
+        # 部门变更时，移除当前上级关系（跨部门管理需要重新设置）
+        if self.manager_id:
+            self.remove_manager()
+        
+        self._add_domain_event(EmployeeDepartmentChangedEvent(
+            employee_id=self.id,
+            tenant_id=self.tenant_id,
+            old_department_id=old_department_id,
+            new_department_id=new_department_id
+        ))
+    
+    def update_position(self, new_position: str) -> None:
+        """更新职位"""
+        new_position = self._validate_position(new_position)
+        if new_position == self.position:
+            return
+        
+        old_position = self.position
+        self.position = new_position
+        
+        self._add_domain_event(EmployeePositionChangedEvent(
+            employee_id=self.id,
+            tenant_id=self.tenant_id,
+            old_position=old_position,
+            new_position=new_position
+        ))
+    
+    def deactivate(self, reason: str) -> None:
+        """停用员工账户"""
+        if not self.is_active:
+            raise DomainException("员工已经是停用状态")
+        
+        # 移除管理关系
+        if self.manager_id:
+            self.remove_manager()
+        
+        # 处理下属关系
+        if self.subordinates:
+            self._reassign_subordinates()
+        
+        self.is_active = False
+        self.deactivation_date = date.today()
+        self.deactivation_reason = reason
+        
+        self._add_domain_event(EmployeeDeactivatedEvent(
+            employee_id=self.id,
+            tenant_id=self.tenant_id,
+            reason=reason
+        ))
+    
+    def _would_create_cycle(self, potential_manager: "Employee") -> bool:
+        """检查是否会创建循环管理关系"""
+        visited = set()
+        current = potential_manager
+        
+        while current and current.manager_id:
+            if current.manager_id in visited:
+                return True  # 已存在循环
+            
+            if current.manager_id == self.id:
+                return True  # 会创建新循环
+            
+            visited.add(current.manager_id)
+            # 这里需要通过仓储获取上级员工
+            # current = await employee_repository.get_by_id(current.manager_id)
+        
+        return False
+    
+    def _reassign_subordinates(self) -> None:
+        """重新分配下属"""
+        # 将下属重新分配给当前员工的上级
+        for subordinate in self.subordinates:
+            if self.manager_id:
+                subordinate.assign_manager_by_id(self.manager_id)
+            else:
+                subordinate.remove_manager()
+    
+    def _validate_name(self, name: str) -> str:
+        """验证员工姓名"""
+        if not name or not name.strip():
+            raise DomainException("员工姓名不能为空")
+        
+        clean_name = name.strip()
+        if len(clean_name) < 2:
+            raise DomainException("员工姓名长度不能少于2个字符")
+        
+        if len(clean_name) > 50:
+            raise DomainException("员工姓名长度不能超过50个字符")
+        
+        # 只允许中文、英文字母和空格
+        if not re.match(r"^[\u4e00-\u9fa5a-zA-Z\s]+$", clean_name):
+            raise DomainException("员工姓名只能包含中文、英文字母和空格")
+        
+        return clean_name
+    
+    def _validate_employee_id(self, employee_id: str) -> str:
+        """验证员工工号"""
+        if not employee_id or not employee_id.strip():
+            raise DomainException("员工工号不能为空")
+        
+        clean_id = employee_id.strip().upper()
+        if len(clean_id) < 3:
+            raise DomainException("员工工号长度不能少于3个字符")
+        
+        if len(clean_id) > 20:
+            raise DomainException("员工工号长度不能超过20个字符")
+        
+        # 只允许字母和数字
+        if not re.match(r"^[A-Z0-9]+$", clean_id):
+            raise DomainException("员工工号只能包含大写字母和数字")
+        
+        return clean_id
+    
+    def _validate_email(self, email: str) -> str:
+        """验证邮箱地址"""
+        if not email or not email.strip():
+            raise DomainException("邮箱地址不能为空")
+        
+        clean_email = email.strip().lower()
+        
+        # 基本邮箱格式验证
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_pattern, clean_email):
+            raise DomainException("请输入有效的邮箱地址")
+        
+        return clean_email
+    
+    def _validate_phone(self, phone: str) -> str:
+        """验证手机号码"""
+        if not phone or not phone.strip():
+            raise DomainException("手机号码不能为空")
+        
+        clean_phone = phone.strip()
+        
+        # 中国大陆手机号验证
+        if not re.match(r"^1[3-9]\d{9}$", clean_phone):
+            raise DomainException("请输入有效的中国大陆手机号码")
+        
+        return clean_phone
+    
+    def _validate_position(self, position: str) -> str:
+        """验证职位"""
+        if not position or not position.strip():
+            raise DomainException("职位不能为空")
+        
+        clean_position = position.strip()
+        if len(clean_position) < 2:
+            raise DomainException("职位长度不能少于2个字符")
+        
+        if len(clean_position) > 50:
+            raise DomainException("职位长度不能超过50个字符")
+        
+        return clean_position
+
+# ❌ 错误示例 - 在API层实现业务逻辑
+@router.put("/employees/{employee_id}/department")
+async def change_employee_department(employee_id: int, new_department_id: int):
+    # 违反：业务逻辑不应在API层实现
+    employee = await db.get(Employee, employee_id)
+    employee.department_id = new_department_id  # 违反：直接修改，跳过业务验证
+    await db.commit()
+```
+
+### 员工查询构建器
+```python
+# ✅ 正确示例 - 员工查询构建器
+class EmployeeQueryBuilder:
+    def __init__(self):
+        self._filters = []
+        self._tenant_id = None
+    
+    def with_tenant(self, tenant_id: str) -> "EmployeeQueryBuilder":
+        """添加租户过滤（必需）"""
+        self._tenant_id = tenant_id
+        return self
+    
+    def with_department(self, department_id: int) -> "EmployeeQueryBuilder":
+        """按部门过滤"""
+        self._filters.append(Employee.department_id == department_id)
+        return self
+    
+    def with_manager(self, manager_id: int) -> "EmployeeQueryBuilder":
+        """按直属上级过滤"""
+        self._filters.append(Employee.manager_id == manager_id)
+        return self
+    
+    def with_position(self, position: str) -> "EmployeeQueryBuilder":
+        """按职位模糊搜索"""
+        self._filters.append(Employee.position.ilike(f"%{position}%"))
+        return self
+    
+    def with_name(self, name: str) -> "EmployeeQueryBuilder":
+        """按姓名模糊搜索"""
+        self._filters.append(Employee.name.ilike(f"%{name}%"))
+        return self
+    
+    def with_active_status(self, is_active: bool = True) -> "EmployeeQueryBuilder":
+        """按激活状态过滤"""
+        self._filters.append(Employee.is_active == is_active)
+        return self
+    
+    def build(self) -> Query:
+        """构建查询"""
+        if not self._tenant_id:
+            raise DomainException("查询必须包含租户ID")
+        
+        # 强制添加租户过滤
+        self._filters.append(Employee.tenant_id == self._tenant_id)
+        
+        return select(Employee).where(and_(*self._filters))
+```
+
+## 部门管理
+
+### 部门领域模型
+```python
+# ✅ 正确示例 - 部门领域实体
+class Department:
+    def __init__(
+        self,
+        name: str,
+        code: str,
+        description: str,
+        tenant_id: str,
+        parent_id: Optional[int] = None
+    ):
+        self.name = self._validate_name(name)
+        self.code = self._validate_code(code)
+        self.description = description
+        self.tenant_id = tenant_id
+        self.parent_id = parent_id
+        self.is_active = True
+        self.created_at = datetime.utcnow()
+        self.employee_count = 0
+        self.children = []
+    
+    def add_child_department(self, child_department: "Department") -> None:
+        """添加子部门"""
+        if child_department.tenant_id != self.tenant_id:
+            raise DomainException("子部门必须属于同一租户")
+        
+        if child_department.id == self.id:
+            raise DomainException("部门不能成为自己的子部门")
+        
+        # 检查是否会形成循环层次关系
+        if self._would_create_hierarchy_cycle(child_department):
+            raise DomainException("添加子部门会形成循环层次关系")
+        
+        child_department.parent_id = self.id
+        self.children.append(child_department)
+        
+        self._add_domain_event(DepartmentHierarchyChangedEvent(
+            department_id=child_department.id,
+            tenant_id=self.tenant_id,
+            old_parent_id=None,
+            new_parent_id=self.id
+        ))
+    
+    def remove_child_department(self, child_department: "Department") -> None:
+        """移除子部门"""
+        if child_department in self.children:
+            child_department.parent_id = None
+            self.children.remove(child_department)
+            
+            self._add_domain_event(DepartmentHierarchyChangedEvent(
+                department_id=child_department.id,
+                tenant_id=self.tenant_id,
+                old_parent_id=self.id,
+                new_parent_id=None
+            ))
+    
+    def move_to_parent(self, new_parent: Optional["Department"]) -> None:
+        """移动到新的父部门"""
+        if new_parent and new_parent.tenant_id != self.tenant_id:
+            raise DomainException("新父部门必须属于同一租户")
+        
+        if new_parent and new_parent.id == self.id:
+            raise DomainException("部门不能成为自己的父部门")
+        
+        if new_parent and self._would_create_hierarchy_cycle(new_parent):
+            raise DomainException("移动部门会形成循环层次关系")
+        
+        old_parent_id = self.parent_id
+        new_parent_id = new_parent.id if new_parent else None
+        
+        self.parent_id = new_parent_id
+        
+        self._add_domain_event(DepartmentHierarchyChangedEvent(
+            department_id=self.id,
+            tenant_id=self.tenant_id,
+            old_parent_id=old_parent_id,
+            new_parent_id=new_parent_id
+        ))
+    
+    def deactivate(self) -> None:
+        """停用部门"""
+        if not self.is_active:
+            raise DomainException("部门已经是停用状态")
+        
+        # 检查是否有员工
+        if self.employee_count > 0:
+            raise DomainException("有员工的部门不能被停用，请先转移员工")
+        
+        # 检查是否有子部门
+        if self.children:
+            raise DomainException("有子部门的部门不能被停用，请先处理子部门")
+        
+        self.is_active = False
+        self.deactivated_at = datetime.utcnow()
+        
+        self._add_domain_event(DepartmentDeactivatedEvent(
+            department_id=self.id,
+            tenant_id=self.tenant_id
+        ))
+    
+    def update_employee_count(self, count: int) -> None:
+        """更新员工数量"""
+        if count < 0:
+            raise DomainException("员工数量不能为负数")
+        
+        self.employee_count = count
+    
+    def get_hierarchy_path(self) -> List[str]:
+        """获取部门层次路径"""
+        path = [self.name]
+        current = self
+        
+        while current.parent_id:
+            # 这里需要通过仓储获取父部门
+            # parent = await department_repository.get_by_id(current.parent_id)
+            # if parent:
+            #     path.insert(0, parent.name)
+            #     current = parent
+            # else:
+            #     break
+            pass
+        
+        return path
+    
+    def _would_create_hierarchy_cycle(self, potential_parent: "Department") -> bool:
+        """检查是否会创建循环层次关系"""
+        visited = set()
+        current = potential_parent
+        
+        while current and current.parent_id:
+            if current.parent_id in visited:
+                return True  # 已存在循环
+            
+            if current.parent_id == self.id:
+                return True  # 会创建新循环
+            
+            visited.add(current.parent_id)
+            # 这里需要通过仓储获取父部门
+            # current = await department_repository.get_by_id(current.parent_id)
+        
+        return False
+    
+    def _validate_name(self, name: str) -> str:
+        """验证部门名称"""
+        if not name or not name.strip():
+            raise DomainException("部门名称不能为空")
+        
+        clean_name = name.strip()
+        if len(clean_name) < 2:
+            raise DomainException("部门名称长度不能少于2个字符")
+        
+        if len(clean_name) > 100:
+            raise DomainException("部门名称长度不能超过100个字符")
+        
+        return clean_name
+    
+    def _validate_code(self, code: str) -> str:
+        """验证部门代码"""
+        if not code or not code.strip():
+            raise DomainException("部门代码不能为空")
+        
+        clean_code = code.strip().upper()
+        if len(clean_code) < 2:
+            raise DomainException("部门代码长度不能少于2个字符")
+        
+        if len(clean_code) > 20:
+            raise DomainException("部门代码长度不能超过20个字符")
+        
+        # 只允许字母和数字
+        if not re.match(r"^[A-Z0-9]+$", clean_code):
+            raise DomainException("部门代码只能包含大写字母和数字")
+        
+        return clean_code
+```
+
+## 站点管理
+
+### 站点领域模型
+```python
+# ✅ 正确示例 - 站点领域实体
+class Site:
+    def __init__(
+        self,
+        name: str,
+        code: str,
+        address: str,
+        tenant_id: str
+    ):
+        self.name = self._validate_name(name)
+        self.code = self._validate_code(code)
+        self.address = self._validate_address(address)
+        self.tenant_id = tenant_id
+        self.is_active = True
+        self.created_at = datetime.utcnow()
+        self.latitude = None
+        self.longitude = None
+        self.contact_person = None
+        self.contact_phone = None
+    
+    def update_location(self, latitude: float, longitude: float) -> None:
+        """更新地理位置"""
+        if not (-90 <= latitude <= 90):
+            raise DomainException("纬度必须在-90到90之间")
+        
+        if not (-180 <= longitude <= 180):
+            raise DomainException("经度必须在-180到180之间")
+        
+        self.latitude = latitude
+        self.longitude = longitude
+        
+        self._add_domain_event(SiteLocationUpdatedEvent(
+            site_id=self.id,
+            tenant_id=self.tenant_id,
+            latitude=latitude,
+            longitude=longitude
+        ))
+    
+    def update_contact(self, contact_person: str, contact_phone: str) -> None:
+        """更新联系信息"""
+        self.contact_person = self._validate_contact_person(contact_person)
+        self.contact_phone = self._validate_contact_phone(contact_phone)
+        
+        self._add_domain_event(SiteContactUpdatedEvent(
+            site_id=self.id,
+            tenant_id=self.tenant_id,
+            contact_person=contact_person,
+            contact_phone=contact_phone
+        ))
+    
+    def deactivate(self) -> None:
+        """停用站点"""
+        if not self.is_active:
+            raise DomainException("站点已经是停用状态")
+        
+        self.is_active = False
+        self.deactivated_at = datetime.utcnow()
+        
+        self._add_domain_event(SiteDeactivatedEvent(
+            site_id=self.id,
+            tenant_id=self.tenant_id
+        ))
+    
+    def _validate_name(self, name: str) -> str:
+        """验证站点名称"""
+        if not name or not name.strip():
+            raise DomainException("站点名称不能为空")
+        
+        clean_name = name.strip()
+        if len(clean_name) < 2:
+            raise DomainException("站点名称长度不能少于2个字符")
+        
+        if len(clean_name) > 100:
+            raise DomainException("站点名称长度不能超过100个字符")
+        
+        return clean_name
+    
+    def _validate_code(self, code: str) -> str:
+        """验证站点代码"""
+        if not code or not code.strip():
+            raise DomainException("站点代码不能为空")
+        
+        clean_code = code.strip().upper()
+        if len(clean_code) < 2:
+            raise DomainException("站点代码长度不能少于2个字符")
+        
+        if len(clean_code) > 20:
+            raise DomainException("站点代码长度不能超过20个字符")
+        
+        # 只允许字母和数字
+        if not re.match(r"^[A-Z0-9]+$", clean_code):
+            raise DomainException("站点代码只能包含大写字母和数字")
+        
+        return clean_code
+    
+    def _validate_address(self, address: str) -> str:
+        """验证站点地址"""
+        if not address or not address.strip():
+            raise DomainException("站点地址不能为空")
+        
+        clean_address = address.strip()
+        if len(clean_address) < 10:
+            raise DomainException("站点地址长度不能少于10个字符")
+        
+        if len(clean_address) > 200:
+            raise DomainException("站点地址长度不能超过200个字符")
+        
+        return clean_address
+    
+    def _validate_contact_person(self, contact_person: str) -> str:
+        """验证联系人"""
+        if not contact_person or not contact_person.strip():
+            raise DomainException("联系人不能为空")
+        
+        clean_name = contact_person.strip()
+        if len(clean_name) < 2:
+            raise DomainException("联系人姓名长度不能少于2个字符")
+        
+        if len(clean_name) > 50:
+            raise DomainException("联系人姓名长度不能超过50个字符")
+        
+        return clean_name
+    
+    def _validate_contact_phone(self, contact_phone: str) -> str:
+        """验证联系电话"""
+        if not contact_phone or not contact_phone.strip():
+            raise DomainException("联系电话不能为空")
+        
+        clean_phone = contact_phone.strip()
+        
+        # 支持手机号和固定电话
+        mobile_pattern = r"^1[3-9]\d{9}$"
+        landline_pattern = r"^0\d{2,3}-?\d{7,8}$"
+        
+        if not (re.match(mobile_pattern, clean_phone) or re.match(landline_pattern, clean_phone)):
+            raise DomainException("请输入有效的手机号码或固定电话")
+        
+        return clean_phone
+```
+
+## 组织领域事件
+
+### 组织事件定义
+```python
+# ✅ 正确示例 - 组织领域事件
+@dataclass(frozen=True)
+class EmployeeManagerChangedEvent:
+    """员工上级变更事件"""
+    employee_id: int
+    tenant_id: str
+    old_manager_id: Optional[int]
+    new_manager_id: Optional[int]
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class EmployeeDepartmentChangedEvent:
+    """员工部门变更事件"""
+    employee_id: int
+    tenant_id: str
+    old_department_id: int
+    new_department_id: int
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class DepartmentHierarchyChangedEvent:
+    """部门层次变更事件"""
+    department_id: int
+    tenant_id: str
+    old_parent_id: Optional[int]
+    new_parent_id: Optional[int]
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class SiteLocationUpdatedEvent:
+    """站点位置更新事件"""
+    site_id: int
+    tenant_id: str
+    latitude: float
+    longitude: float
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+```
+
+## 检查清单
+
+### 员工管理检查
+- [ ] 员工数据验证是否完整？
+- [ ] 管理关系是否防止循环依赖？
+- [ ] 部门变更是否正确处理管理关系？
+- [ ] 员工停用是否处理所有相关关系？
+
+### 部门管理检查
+- [ ] 部门层次是否防止循环关系？
+- [ ] 部门停用是否检查员工和子部门？
+- [ ] 部门代码是否唯一验证？
+- [ ] 层次路径是否正确计算？
+
+### 站点管理检查
+- [ ] 站点地理位置验证是否正确？
+- [ ] 联系信息格式是否有效？
+- [ ] 站点代码是否符合规范？
+- [ ] 地址信息是否完整？
+
+### 组织关系检查
+- [ ] 跨部门管理关系是否得到适当处理？
+- [ ] 组织变更是否正确触发事件？
+- [ ] 数据一致性是否得到保证？
+- [ ] 租户隔离是否在所有操作中实施？
+
+### 查询功能检查
+- [ ] 组织查询是否包含租户过滤？
+- [ ] 层次查询是否支持递归？
+- [ ] 统计数据是否实时更新？
+- [ ] 搜索功能是否支持模糊匹配？

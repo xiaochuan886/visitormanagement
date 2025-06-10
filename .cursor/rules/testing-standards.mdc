@@ -1,0 +1,137 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 测试开发标准
+mdc:visitor-management-core.mdc
+mdc:clean-architecture.mdc
+mdc:security-standards.mdc
+mdc:api-development.mdc
+
+## 测试框架规范
+
+### Pytest配置要求
+- 使用pytest作为主要测试框架
+- 测试配置文件：`pytest.ini` 或 `pyproject.toml` 中的 `[tool.pytest.ini_options]`
+- 异步测试使用pytest-asyncio插件
+- 数据库测试使用pytest-mock和factories
+- API测试使用httpx.AsyncClient进行异步HTTP测试
+
+### 测试文件组织
+- 测试文件位置：`tests/` 目录下按模块镜像组织
+- 测试文件命名：`test_{module_name}.py`
+- 测试类命名：`Test{ClassName}`
+- 测试方法命名：`test_{功能描述}_should_{期望结果}_when_{条件}`
+- conftest.py文件用于共享fixtures和配置
+
+### 测试覆盖率标准
+- 代码覆盖率要求：总体覆盖率≥90%
+- 单元测试覆盖率：业务逻辑代码≥95%
+- 集成测试覆盖率：API端点≥100%
+- 分支覆盖率：关键业务逻辑≥85%
+- 使用coverage.py和pytest-cov进行覆盖率统计
+
+### 单元测试规范
+- 每个业务服务类必须有对应的单元测试
+- 测试必须遵循AAA模式：Arrange, Act, Assert
+- 使用factory_boy创建测试数据
+- 数据库操作必须使用事务回滚
+- 外部依赖必须使用mock进行隔离
+
+### 集成测试规范  
+- API端点必须包含完整的集成测试
+- 测试数据库使用SQLite内存数据库或PostgreSQL测试实例
+- 认证测试必须包含token生成和验证
+- 权限测试必须覆盖所有角色和权限组合
+- 多租户测试必须验证数据隔离效果
+
+### Mock使用标准
+- 外部服务调用必须使用mock
+- 数据库查询可选择性mock（优先使用真实数据库测试）
+- 时间相关操作使用freezegun进行时间控制
+- 随机数生成使用固定种子确保可重现性
+- HTTP请求使用responses或httpx_mock进行mock
+
+### 测试数据管理
+- 使用Factory Boy创建测试模型工厂
+- 测试数据必须符合业务规则和约束
+- 敏感数据（密码、token）使用假数据
+- 测试数据清理必须在测试完成后执行
+- 共享测试数据通过fixtures提供
+
+### 异步测试规范
+- 异步函数测试使用@pytest.mark.asyncio装饰器
+- 异步数据库操作使用async session
+- 异步HTTP客户端使用httpx.AsyncClient
+- 异步mock使用AsyncMock类
+- 协程测试必须正确处理事件循环
+
+### 性能测试要求
+- 关键API端点必须包含性能测试
+- 使用pytest-benchmark进行性能基准测试
+- 数据库查询性能测试使用EXPLAIN ANALYZE
+- 响应时间要求：API响应≤200ms，复杂查询≤1s
+- 并发测试使用pytest-xdist进行并行执行
+
+### 安全测试规范
+- 认证授权必须包含安全测试
+- SQL注入防护测试
+- XSS攻击防护测试
+- 权限越权测试
+- 敏感数据泄露测试
+
+### 测试环境配置
+- 开发环境：使用本地SQLite数据库
+- CI环境：使用Docker容器化的PostgreSQL
+- 测试配置通过环境变量管理
+- 测试日志级别设置为WARNING减少输出
+- 测试缓存使用内存Redis或mock
+
+### 示例测试实现
+```python
+# 单元测试示例
+class TestVisitorService:
+    async def test_create_visitor_should_return_visitor_when_valid_data(
+        self, visitor_service, visitor_factory
+    ):
+        # Arrange
+        visitor_data = visitor_factory.build()
+        
+        # Act
+        result = await visitor_service.create_visitor(visitor_data, tenant_id=1)
+        
+        # Assert
+        assert result.name == visitor_data.name
+        assert result.tenant_id == 1
+
+# API集成测试示例
+class TestVisitorAPI:
+    async def test_create_visitor_api_should_return_201_when_authenticated(
+        self, async_client, auth_headers, visitor_data
+    ):
+        # Act
+        response = await async_client.post(
+            "/api/v1/visitors", 
+            json=visitor_data, 
+            headers=auth_headers
+        )
+        
+        # Assert
+        assert response.status_code == 201
+        assert response.json()["name"] == visitor_data["name"]
+```
+
+### CI/CD集成测试
+- 所有测试必须在CI流水线中自动执行
+- 测试失败必须阻止代码合并
+- 覆盖率报告必须自动生成和上传
+- 性能回归测试必须自动检测
+- 测试结果必须与代码审查工具集成
+
+### 测试文档要求
+- 复杂测试场景必须包含文档说明
+- 测试数据生成逻辑必须文档化
+- Mock配置和原因必须说明
+- 性能基准和期望值必须记录
+- 测试维护指南必须更新

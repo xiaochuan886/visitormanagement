@@ -1,0 +1,665 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 认证授权领域 - Authentication & Authorization Domain
+
+## 规则概述
+本规则定义认证授权业务领域的核心逻辑、用户管理规范和多租户架构实现。适用于所有认证、授权和用户管理相关的开发任务，确保安全性和多租户数据隔离。
+
+## 认证领域架构
+
+### 核心实体文件
+- **用户实体**: [entities/user.py](mdc:backend_service/app/domain/entities/user.py) - 用户领域实体
+- **认证基础设施**: [auth/](mdc:backend_service/app/infrastructure/auth/) - 认证服务实现
+- **认证路由**: [routes/auth.py](mdc:backend_service/app/api/routes/auth.py) - 认证API接口
+- **认证依赖**: [dependencies/auth.py](mdc:backend_service/app/api/dependencies/auth.py) - 认证依赖注入
+
+## 用户实体管理
+
+### 用户领域模型
+```python
+# ✅ 正确示例 - 用户领域实体
+class User:
+    def __init__(
+        self, 
+        username: str, 
+        email: str, 
+        tenant_id: str,
+        roles: List[str] = None
+    ):
+        self.username = self._validate_username(username)
+        self.email = self._validate_email(email)
+        self.tenant_id = tenant_id
+        self.roles = roles or ["user"]
+        self.is_active = True
+        self.is_verified = False
+        self.created_at = datetime.utcnow()
+        self.last_login = None
+        self.failed_login_attempts = 0
+        self.locked_until = None
+        self._hashed_password = None
+    
+    def set_password(self, password: str, password_handler: PasswordHandler) -> None:
+        """设置用户密码"""
+        # 验证密码强度
+        password_handler.validate_password_strength(password)
+        
+        # 哈希密码
+        self._hashed_password = password_handler.hash_password(password)
+        
+        # 触发密码变更事件
+        self._add_domain_event(UserPasswordChangedEvent(
+            user_id=self.id,
+            tenant_id=self.tenant_id,
+            changed_at=datetime.utcnow()
+        ))
+    
+    def verify_password(self, password: str, password_handler: PasswordHandler) -> bool:
+        """验证用户密码"""
+        if not self._hashed_password:
+            return False
+        
+        return password_handler.verify_password(password, self._hashed_password)
+    
+    def authenticate(self, password: str, password_handler: PasswordHandler) -> bool:
+        """用户认证"""
+        # 检查账户锁定状态
+        if self.is_locked():
+            raise UserLockedException("账户已被锁定，请稍后再试")
+        
+        # 检查账户激活状态
+        if not self.is_active:
+            raise UserInactiveException("账户已被禁用")
+        
+        # 验证密码
+        if not self.verify_password(password, password_handler):
+            self._handle_failed_login()
+            raise InvalidCredentialsException("用户名或密码错误")
+        
+        # 登录成功，重置失败次数
+        self._handle_successful_login()
+        return True
+    
+    def add_role(self, role: str) -> None:
+        """添加用户角色"""
+        if role not in self.roles:
+            self.roles.append(role)
+            self._add_domain_event(UserRoleChangedEvent(
+                user_id=self.id,
+                tenant_id=self.tenant_id,
+                roles=self.roles.copy()
+            ))
+    
+    def remove_role(self, role: str) -> None:
+        """移除用户角色"""
+        if role in self.roles:
+            self.roles.remove(role)
+            # 确保至少保留一个角色
+            if not self.roles:
+                self.roles = ["user"]
+            
+            self._add_domain_event(UserRoleChangedEvent(
+                user_id=self.id,
+                tenant_id=self.tenant_id,
+                roles=self.roles.copy()
+            ))
+    
+    def deactivate(self, reason: str) -> None:
+        """停用用户账户"""
+        if not self.is_active:
+            raise DomainException("用户账户已经是停用状态")
+        
+        self.is_active = False
+        self.deactivated_at = datetime.utcnow()
+        self.deactivation_reason = reason
+        
+        self._add_domain_event(UserDeactivatedEvent(
+            user_id=self.id,
+            tenant_id=self.tenant_id,
+            reason=reason
+        ))
+    
+    def is_locked(self) -> bool:
+        """检查账户是否被锁定"""
+        if not self.locked_until:
+            return False
+        return datetime.utcnow() < self.locked_until
+    
+    def _handle_failed_login(self) -> None:
+        """处理登录失败"""
+        self.failed_login_attempts += 1
+        
+        # 超过5次失败，锁定账户1小时
+        if self.failed_login_attempts >= 5:
+            self.locked_until = datetime.utcnow() + timedelta(hours=1)
+            
+            self._add_domain_event(UserLockedEvent(
+                user_id=self.id,
+                tenant_id=self.tenant_id,
+                locked_until=self.locked_until,
+                reason="连续登录失败次数过多"
+            ))
+    
+    def _handle_successful_login(self) -> None:
+        """处理登录成功"""
+        self.last_login = datetime.utcnow()
+        self.failed_login_attempts = 0
+        self.locked_until = None
+        
+        self._add_domain_event(UserLoggedInEvent(
+            user_id=self.id,
+            tenant_id=self.tenant_id,
+            login_time=self.last_login
+        ))
+    
+    def _validate_username(self, username: str) -> str:
+        """验证用户名"""
+        if not username or not username.strip():
+            raise DomainException("用户名不能为空")
+        
+        clean_username = username.strip().lower()
+        
+        if len(clean_username) < 3:
+            raise DomainException("用户名长度不能少于3个字符")
+        
+        if len(clean_username) > 50:
+            raise DomainException("用户名长度不能超过50个字符")
+        
+        # 只允许字母、数字、下划线和点号
+        if not re.match(r"^[a-zA-Z0-9_.]+$", clean_username):
+            raise DomainException("用户名只能包含字母、数字、下划线和点号")
+        
+        return clean_username
+    
+    def _validate_email(self, email: str) -> str:
+        """验证邮箱地址"""
+        if not email or not email.strip():
+            raise DomainException("邮箱地址不能为空")
+        
+        clean_email = email.strip().lower()
+        
+        # 基本邮箱格式验证
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_pattern, clean_email):
+            raise DomainException("请输入有效的邮箱地址")
+        
+        return clean_email
+
+# ❌ 错误示例 - 在基础设施层实现业务逻辑
+class UserRepository:
+    async def authenticate_user(self, username: str, password: str):
+        # 违反：认证逻辑应该在领域层实现
+        user = await self.get_by_username(username)
+        if user and user.password == password:  # 违反：明文密码比较
+            return user
+        return None
+```
+
+### 角色权限管理
+```python
+# ✅ 正确示例 - 角色权限领域模型
+class Role:
+    def __init__(self, name: str, permissions: List[str], tenant_id: str):
+        self.name = self._validate_role_name(name)
+        self.permissions = self._validate_permissions(permissions)
+        self.tenant_id = tenant_id
+        self.is_system_role = False
+        self.created_at = datetime.utcnow()
+    
+    def add_permission(self, permission: str) -> None:
+        """添加权限"""
+        if self.is_system_role:
+            raise DomainException("系统角色不能修改权限")
+        
+        if permission not in self.permissions:
+            # 验证权限格式
+            if not self._is_valid_permission_format(permission):
+                raise DomainException(f"权限格式错误: {permission}")
+            
+            self.permissions.append(permission)
+            self._add_domain_event(RolePermissionChangedEvent(
+                role_name=self.name,
+                tenant_id=self.tenant_id,
+                permissions=self.permissions.copy()
+            ))
+    
+    def remove_permission(self, permission: str) -> None:
+        """移除权限"""
+        if self.is_system_role:
+            raise DomainException("系统角色不能修改权限")
+        
+        if permission in self.permissions:
+            self.permissions.remove(permission)
+            self._add_domain_event(RolePermissionChangedEvent(
+                role_name=self.name,
+                tenant_id=self.tenant_id,
+                permissions=self.permissions.copy()
+            ))
+    
+    def has_permission(self, permission: str) -> bool:
+        """检查是否具有指定权限"""
+        return permission in self.permissions
+    
+    def _validate_role_name(self, name: str) -> str:
+        """验证角色名称"""
+        if not name or not name.strip():
+            raise DomainException("角色名称不能为空")
+        
+        clean_name = name.strip().lower()
+        
+        if len(clean_name) < 2:
+            raise DomainException("角色名称长度不能少于2个字符")
+        
+        if len(clean_name) > 50:
+            raise DomainException("角色名称长度不能超过50个字符")
+        
+        # 只允许字母、数字和下划线
+        if not re.match(r"^[a-zA-Z0-9_]+$", clean_name):
+            raise DomainException("角色名称只能包含字母、数字和下划线")
+        
+        return clean_name
+    
+    def _validate_permissions(self, permissions: List[str]) -> List[str]:
+        """验证权限列表"""
+        if not permissions:
+            return []
+        
+        valid_permissions = []
+        for permission in permissions:
+            if self._is_valid_permission_format(permission):
+                valid_permissions.append(permission)
+            else:
+                raise DomainException(f"权限格式错误: {permission}")
+        
+        return list(set(valid_permissions))  # 去重
+    
+    def _is_valid_permission_format(self, permission: str) -> bool:
+        """验证权限格式: resource:action"""
+        if not permission or ":" not in permission:
+            return False
+        
+        parts = permission.split(":")
+        return len(parts) == 2 and all(part.strip() for part in parts)
+
+# 预定义系统角色
+SYSTEM_ROLES = {
+    "super_admin": Role(
+        name="super_admin",
+        permissions=[
+            "visitor:read", "visitor:create", "visitor:update", "visitor:delete", "visitor:approve",
+            "employee:read", "employee:create", "employee:update", "employee:delete",
+            "department:read", "department:create", "department:update", "department:delete",
+            "site:read", "site:create", "site:update", "site:delete",
+            "user:read", "user:create", "user:update", "user:delete",
+            "role:read", "role:create", "role:update", "role:delete",
+            "system:admin", "tenant:admin"
+        ],
+        tenant_id="system"
+    ),
+    "admin": Role(
+        name="admin",
+        permissions=[
+            "visitor:read", "visitor:create", "visitor:update", "visitor:approve",
+            "employee:read", "employee:create", "employee:update",
+            "department:read", "department:create", "department:update",
+            "site:read"
+        ],
+        tenant_id="system"
+    ),
+    "user": Role(
+        name="user",
+        permissions=[
+            "visitor:read", "visitor:create"
+        ],
+        tenant_id="system"
+    )
+}
+
+# 标记为系统角色
+for role in SYSTEM_ROLES.values():
+    role.is_system_role = True
+```
+
+## 多租户认证架构
+
+### 租户上下文管理
+```python
+# ✅ 正确示例 - 租户上下文管理
+@dataclass(frozen=True)
+class TenantContext:
+    """租户上下文"""
+    tenant_id: str
+    tenant_name: str
+    is_active: bool
+    created_at: datetime
+    settings: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class UserContext:
+    """用户上下文"""
+    user_id: str
+    username: str
+    email: str
+    roles: List[str]
+    permissions: List[str]
+    tenant: TenantContext
+    last_login: Optional[datetime] = None
+
+class AuthenticationService:
+    def __init__(
+        self,
+        user_repo: UserRepository,
+        tenant_repo: TenantRepository,
+        jwt_handler: JWTHandler,
+        password_handler: PasswordHandler
+    ):
+        self._user_repo = user_repo
+        self._tenant_repo = tenant_repo
+        self._jwt_handler = jwt_handler
+        self._password_handler = password_handler
+    
+    async def authenticate(self, username: str, password: str, tenant_id: str) -> AuthResult:
+        """多租户用户认证"""
+        # 1. 验证租户
+        tenant = await self._tenant_repo.get_by_id(tenant_id)
+        if not tenant or not tenant.is_active:
+            raise TenantInactiveException("租户不存在或已停用")
+        
+        # 2. 获取用户（租户隔离）
+        user = await self._user_repo.get_by_username(username, tenant_id)
+        if not user:
+            raise InvalidCredentialsException("用户名或密码错误")
+        
+        # 3. 执行认证
+        user.authenticate(password, self._password_handler)
+        
+        # 4. 获取用户权限
+        user_permissions = await self._get_user_permissions(user)
+        
+        # 5. 生成令牌
+        access_token = self._jwt_handler.create_access_token(
+            user_id=str(user.id),
+            username=user.username,
+            tenant_id=tenant_id,
+            roles=user.roles,
+            permissions=user_permissions
+        )
+        
+        refresh_token = self._jwt_handler.create_refresh_token(
+            user_id=str(user.id),
+            tenant_id=tenant_id
+        )
+        
+        # 6. 更新最后登录时间
+        await self._user_repo.save(user)
+        
+        return AuthResult(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            user_context=UserContext(
+                user_id=str(user.id),
+                username=user.username,
+                email=user.email,
+                roles=user.roles,
+                permissions=user_permissions,
+                tenant=TenantContext(
+                    tenant_id=tenant.id,
+                    tenant_name=tenant.name,
+                    is_active=tenant.is_active,
+                    created_at=tenant.created_at,
+                    settings=tenant.settings
+                ),
+                last_login=user.last_login
+            )
+        )
+    
+    async def refresh_token(self, refresh_token: str) -> AuthResult:
+        """刷新访问令牌"""
+        try:
+            payload = self._jwt_handler.decode_token(refresh_token)
+            
+            if payload.get("type") != "refresh":
+                raise InvalidTokenException("无效的刷新令牌")
+            
+            user_id = payload.get("sub")
+            tenant_id = payload.get("tenant_id")
+            
+            if not user_id or not tenant_id:
+                raise InvalidTokenException("令牌缺少必要信息")
+            
+            # 重新获取用户信息（确保最新权限）
+            user = await self._user_repo.get_by_id(int(user_id), tenant_id)
+            if not user or not user.is_active:
+                raise UserInactiveException("用户不存在或已停用")
+            
+            # 获取最新权限
+            user_permissions = await self._get_user_permissions(user)
+            
+            # 生成新的访问令牌
+            new_access_token = self._jwt_handler.create_access_token(
+                user_id=user_id,
+                username=user.username,
+                tenant_id=tenant_id,
+                roles=user.roles,
+                permissions=user_permissions
+            )
+            
+            return AuthResult(
+                access_token=new_access_token,
+                refresh_token=refresh_token,  # 刷新令牌保持不变
+                user_context=UserContext(
+                    user_id=user_id,
+                    username=user.username,
+                    email=user.email,
+                    roles=user.roles,
+                    permissions=user_permissions,
+                    tenant=await self._get_tenant_context(tenant_id),
+                    last_login=user.last_login
+                )
+            )
+            
+        except JWTError as e:
+            raise InvalidTokenException(f"令牌验证失败: {str(e)}")
+    
+    async def _get_user_permissions(self, user: User) -> List[str]:
+        """获取用户的所有权限"""
+        all_permissions = set()
+        
+        for role_name in user.roles:
+            # 优先查找系统角色
+            if role_name in SYSTEM_ROLES:
+                role = SYSTEM_ROLES[role_name]
+            else:
+                # 查找租户自定义角色
+                role = await self._role_repo.get_by_name(role_name, user.tenant_id)
+            
+            if role:
+                all_permissions.update(role.permissions)
+        
+        return list(all_permissions)
+```
+
+### 权限验证装饰器
+```python
+# ✅ 正确示例 - 权限验证装饰器
+def require_permission(permission: str):
+    """权限验证装饰器"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # 从依赖注入获取当前用户上下文
+            current_user = None
+            for key, value in kwargs.items():
+                if isinstance(value, UserContext):
+                    current_user = value
+                    break
+            
+            if not current_user:
+                raise HTTPException(401, "缺少用户认证信息")
+            
+            if permission not in current_user.permissions:
+                raise HTTPException(403, f"缺少权限: {permission}")
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def require_role(role: str):
+    """角色验证装饰器"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            current_user = None
+            for key, value in kwargs.items():
+                if isinstance(value, UserContext):
+                    current_user = value
+                    break
+            
+            if not current_user:
+                raise HTTPException(401, "缺少用户认证信息")
+            
+            if role not in current_user.roles:
+                raise HTTPException(403, f"需要角色: {role}")
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# 使用示例
+@router.post("/visitors")
+@require_permission("visitor:create")
+async def create_visitor(
+    visitor_data: VisitorCreateRequest,
+    current_user: UserContext = Depends(get_current_user)
+):
+    # 权限已验证，执行业务逻辑
+    pass
+
+@router.delete("/users/{user_id}")
+@require_role("admin")
+async def delete_user(
+    user_id: int,
+    current_user: UserContext = Depends(get_current_user)
+):
+    # 角色已验证，执行业务逻辑
+    pass
+```
+
+## 认证领域事件
+
+### 用户事件定义
+```python
+# ✅ 正确示例 - 认证领域事件
+@dataclass(frozen=True)
+class UserLoggedInEvent:
+    """用户登录事件"""
+    user_id: str
+    tenant_id: str
+    login_time: datetime
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class UserPasswordChangedEvent:
+    """用户密码变更事件"""
+    user_id: str
+    tenant_id: str
+    changed_at: datetime
+    changed_by: Optional[str] = None
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class UserLockedEvent:
+    """用户账户锁定事件"""
+    user_id: str
+    tenant_id: str
+    locked_until: datetime
+    reason: str
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class UserRoleChangedEvent:
+    """用户角色变更事件"""
+    user_id: str
+    tenant_id: str
+    roles: List[str]
+    changed_by: Optional[str] = None
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass(frozen=True)
+class UserDeactivatedEvent:
+    """用户停用事件"""
+    user_id: str
+    tenant_id: str
+    reason: str
+    deactivated_by: Optional[str] = None
+    occurred_at: datetime = field(default_factory=datetime.utcnow)
+
+# 事件处理器示例
+class SecurityEventHandler:
+    def __init__(self, audit_service: AuditService):
+        self._audit_service = audit_service
+    
+    async def handle_user_logged_in(self, event: UserLoggedInEvent):
+        """处理用户登录事件"""
+        await self._audit_service.log_security_event(
+            event_type="USER_LOGIN",
+            user_id=event.user_id,
+            tenant_id=event.tenant_id,
+            details={
+                "login_time": event.login_time.isoformat(),
+                "ip_address": event.ip_address,
+                "user_agent": event.user_agent
+            }
+        )
+    
+    async def handle_user_locked(self, event: UserLockedEvent):
+        """处理用户锁定事件"""
+        await self._audit_service.log_security_event(
+            event_type="USER_LOCKED",
+            user_id=event.user_id,
+            tenant_id=event.tenant_id,
+            details={
+                "locked_until": event.locked_until.isoformat(),
+                "reason": event.reason
+            }
+        )
+        
+        # 发送安全告警
+        await self._send_security_alert(event)
+```
+
+## 检查清单
+
+### 用户管理检查
+- [ ] 用户创建是否包含必要的验证？
+- [ ] 密码是否安全哈希存储？
+- [ ] 用户名和邮箱验证是否正确？
+- [ ] 账户锁定机制是否正确实现？
+
+### 角色权限检查
+- [ ] 权限格式是否符合规范？
+- [ ] 系统角色是否不可修改？
+- [ ] 权限检查是否在所有敏感操作中实施？
+- [ ] 角色变更是否正确触发事件？
+
+### 多租户检查
+- [ ] 所有用户操作是否包含租户隔离？
+- [ ] JWT令牌是否包含租户信息？
+- [ ] 租户验证是否在认证流程中实施？
+- [ ] 跨租户数据访问是否被阻止？
+
+### 安全性检查
+- [ ] 认证失败是否有适当的延迟？
+- [ ] 敏感操作是否记录审计日志？
+- [ ] 令牌刷新是否验证用户状态？
+- [ ] 密码策略是否得到强制执行？
+
+### 事件处理检查
+- [ ] 关键认证事件是否正确触发？
+- [ ] 事件处理器是否正确实现？
+- [ ] 安全事件是否记录到审计日志？
+- [ ] 异常情况是否有相应的安全告警？

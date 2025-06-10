@@ -1,0 +1,171 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 访客管理系统 - 核心架构规则
+
+## 规则概述
+本规则提供访客管理系统的核心架构指导，涵盖技术栈标准、项目结构约束和开发环境配置。适用于所有访客管理系统相关的开发任务。
+
+## 项目架构标准
+
+### 技术栈要求
+- **Python版本**: 强制使用 Python 3.11+ 
+- **Web框架**: FastAPI (高性能异步框架)
+- **ORM**: SQLAlchemy 2.0 (异步模式)
+- **数据验证**: Pydantic V2 (类型安全)
+- **数据库**: PostgreSQL 15+ (企业级特性)
+- **缓存**: Redis 7+ (分布式缓存)
+- **认证**: JWT (无状态令牌)
+- **容器化**: Docker + Docker Compose
+
+### 核心项目文件
+- **应用入口**: [main.py](mdc:backend_service/main.py) - FastAPI应用启动配置
+- **依赖管理**: [requirements.txt](mdc:backend_service/requirements.txt) - Python包依赖
+- **Docker配置**: [docker-compose.yml](mdc:backend_service/docker-compose.yml) - 容器编排
+- **环境配置**: [.env](mdc:backend_service/.env) - 环境变量配置
+
+### 项目结构标准
+```
+backend_service/
+├── app/                    # 应用核心代码 (禁止在此目录外放置业务逻辑)
+│   ├── domain/            # 领域层 (纯业务逻辑，无外部依赖)
+│   ├── application/       # 应用层 (业务服务和用例)  
+│   ├── infrastructure/    # 基础设施层 (数据库、缓存、外部服务)
+│   ├── api/              # API层 (HTTP接口和路由)
+│   └── core/             # 核心配置 (设置、常量、工具)
+├── tests/                # 测试代码 (镜像app目录结构)
+├── docs/                 # 项目文档
+└── requirements.txt      # 依赖声明
+```
+
+## 开发环境要求
+
+### 必需工具
+- Docker Desktop 或 Docker Engine
+- Poetry 或 pip (Python包管理)
+- PostgreSQL客户端工具
+- Redis客户端工具  
+- Git (版本控制)
+
+### 代码质量工具
+- **格式化**: Black (代码格式标准化)
+- **类型检查**: Mypy (静态类型验证)
+- **测试框架**: pytest (单元测试和集成测试)
+- **API文档**: 自动生成OpenAPI/Swagger文档
+
+### 环境变量模板
+```bash
+# 数据库配置
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/visitor_management
+
+# Redis配置  
+REDIS_URL=redis://localhost:6379/0
+
+# JWT配置
+SECRET_KEY=your-secret-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# 应用配置
+DEBUG=false
+API_V1_STR=/api/v1
+PROJECT_NAME=Visitor Management System
+```
+
+## 开发约束
+
+### 架构边界
+- **严禁跨层直接访问**: API层不得直接访问Infrastructure层
+- **依赖方向约束**: 只能向内层依赖 (API → Application → Domain)
+- **业务逻辑集中**: 所有业务规则必须在Domain层或Application层
+- **数据访问抽象**: 通过Repository接口访问数据，避免直接SQL
+
+### 异步编程标准
+- **强制异步**: 所有I/O操作必须使用async/await
+- **数据库操作**: 使用AsyncSession和异步查询方法
+- **HTTP请求**: 使用aiohttp或httpx异步客户端
+- **文件操作**: 使用aiofiles进行异步文件操作
+
+### 多租户架构
+- **数据隔离**: 所有数据模型必须包含tenant_id字段
+- **JWT令牌**: 必须包含租户标识信息
+- **API访问**: 通过依赖注入自动获取当前租户上下文
+- **缓存策略**: Redis键必须包含租户前缀实现隔离
+
+## 代码示例
+
+### FastAPI应用初始化
+```python
+from fastapi import FastAPI
+from app.api.routes import auth, visitors, employees
+from app.core.config import settings
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# 路由注册
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["认证"])
+app.include_router(visitors.router, prefix=f"{settings.API_V1_STR}/visitors", tags=["访客管理"])
+```
+
+### 异步数据库操作
+```python
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.infrastructure.database.models import Visitor
+
+async def get_visitor_by_id(db: AsyncSession, visitor_id: int, tenant_id: str) -> Visitor:
+    result = await db.execute(
+        select(Visitor).where(
+            Visitor.id == visitor_id,
+            Visitor.tenant_id == tenant_id
+        )
+    )
+    return result.scalar_one_or_none()
+```
+
+### 多租户上下文注入
+```python
+from fastapi import Depends
+from app.api.dependencies.auth import get_current_tenant
+
+async def create_visitor(
+    visitor_data: VisitorCreate,
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_database)
+):
+    # tenant_id 自动注入，确保数据隔离
+    visitor = Visitor(**visitor_data.dict(), tenant_id=tenant_id)
+    db.add(visitor)
+    await db.commit()
+    return visitor
+```
+
+## 检查清单
+
+### 代码审查要点
+- [ ] 是否遵循Clean Architecture分层约束？
+- [ ] 所有I/O操作是否使用异步模式？
+- [ ] 数据模型是否包含租户隔离字段？
+- [ ] API接口是否包含适当的类型注解？
+- [ ] 错误处理是否完整且一致？
+- [ ] 是否使用依赖注入获取服务实例？
+
+### 部署检查
+- [ ] 环境变量配置是否完整？
+- [ ] Docker容器是否正常构建？
+- [ ] 数据库迁移是否执行成功？
+- [ ] Redis缓存连接是否正常？
+- [ ] API文档是否自动生成？
+- [ ] 健康检查端点是否响应正常？
+
+## 性能基准
+- **API响应时间**: < 200ms (P95)
+- **数据库查询**: < 50ms
+- **缓存命中率**: > 90%
+- **并发支持**: 1000+ 用户
+- **内存使用**: < 512MB (单实例)

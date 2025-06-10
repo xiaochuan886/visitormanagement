@@ -1,0 +1,288 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Clean Architecture - 分层架构实施规范
+
+## 规则概述
+本规则确保访客管理系统严格遵循Clean Architecture原则，维护清晰的分层边界和依赖方向。适用于所有涉及架构设计和代码组织的开发任务。
+
+## 架构分层定义
+
+### 层次结构图
+```
+┌─────────────────────────────────────┐
+│            API Layer                │  ← HTTP接口、路由、中间件
+├─────────────────────────────────────┤
+│         Application Layer           │  ← 业务服务、用例编排  
+├─────────────────────────────────────┤
+│          Domain Layer               │  ← 业务实体、领域逻辑
+├─────────────────────────────────────┤
+│       Infrastructure Layer          │  ← 数据库、外部服务
+└─────────────────────────────────────┘
+```
+
+### 核心架构文件
+- **应用入口**: [__init__.py](mdc:backend_service/app/__init__.py) - 应用包初始化
+- **领域层**: [domain/](mdc:backend_service/app/domain) - 业务核心逻辑
+- **应用层**: [application/](mdc:backend_service/app/application) - 用例和服务
+- **基础设施**: [infrastructure/](mdc:backend_service/app/infrastructure) - 外部依赖
+
+## 分层职责定义
+
+### Domain Layer (领域层)
+**职责范围**: 纯业务逻辑，系统核心
+**允许依赖**: 无外部依赖，只能依赖标准库
+**禁止行为**: 
+- 不得包含任何I/O操作
+- 不得依赖框架或外部库
+- 不得包含基础设施相关代码
+
+```python
+# ✅ 正确示例 - 纯业务实体
+class Visitor:
+    def __init__(self, name: str, phone: str, company: str):
+        self.name = self._validate_name(name)
+        self.phone = self._validate_phone(phone)
+        self.company = company
+        self.status = VisitorStatus.PENDING
+    
+    def approve(self) -> None:
+        """审批访客"""
+        if self.status != VisitorStatus.PENDING:
+            raise DomainException("只有待审批访客才能被审批")
+        self.status = VisitorStatus.APPROVED
+    
+    def _validate_name(self, name: str) -> str:
+        if not name or len(name.strip()) < 2:
+            raise DomainException("访客姓名长度不能少于2个字符")
+        return name.strip()
+
+# ❌ 错误示例 - 包含基础设施依赖
+class Visitor:
+    def save(self, db: AsyncSession):  # 违反：领域层不应依赖数据库
+        db.add(self)
+        await db.commit()
+```
+
+### Application Layer (应用层)  
+**职责范围**: 业务用例编排，协调领域对象
+**允许依赖**: Domain Layer, 基础设施接口(抽象)
+**核心模式**: Service层 + Repository接口
+
+```python
+# ✅ 正确示例 - 应用服务
+class VisitorApplicationService:
+    def __init__(self, visitor_repo: VisitorRepository, notification_service: NotificationService):
+        self._visitor_repo = visitor_repo
+        self._notification_service = notification_service
+    
+    async def approve_visitor(self, visitor_id: int, tenant_id: str) -> VisitorDto:
+        """审批访客用例"""
+        # 1. 获取领域对象
+        visitor = await self._visitor_repo.get_by_id(visitor_id, tenant_id)
+        if not visitor:
+            raise VisitorNotFound(f"访客 {visitor_id} 不存在")
+        
+        # 2. 执行业务逻辑
+        visitor.approve()  # 纯领域方法
+        
+        # 3. 持久化变更
+        await self._visitor_repo.save(visitor)
+        
+        # 4. 发送通知
+        await self._notification_service.send_approval_notification(visitor)
+        
+        return VisitorDto.from_entity(visitor)
+
+# ❌ 错误示例 - 直接操作数据库
+class VisitorApplicationService:
+    async def approve_visitor(self, visitor_id: int, db: AsyncSession):
+        # 违反：应用层不应直接操作数据库
+        result = await db.execute(
+            update(visitor_table).where(visitor_table.c.id == visitor_id)
+            .values(status="approved")
+        )
+```
+
+### Infrastructure Layer (基础设施层)
+**职责范围**: 外部系统集成，数据持久化
+**允许依赖**: 所有层，外部框架和库
+**实现要求**: 必须实现Application层定义的接口
+
+```python
+# ✅ 正确示例 - Repository实现
+class SqlAlchemyVisitorRepository(VisitorRepository):
+    def __init__(self, db: AsyncSession):
+        self._db = db
+    
+    async def get_by_id(self, visitor_id: int, tenant_id: str) -> Optional[Visitor]:
+        result = await self._db.execute(
+            select(VisitorModel).where(
+                VisitorModel.id == visitor_id,
+                VisitorModel.tenant_id == tenant_id
+            )
+        )
+        model = result.scalar_one_or_none()
+        return model.to_domain() if model else None
+    
+    async def save(self, visitor: Visitor) -> None:
+        model = VisitorModel.from_domain(visitor)
+        self._db.add(model)
+        await self._db.commit()
+
+# ✅ 正确示例 - 外部服务适配器
+class EmailNotificationService(NotificationService):
+    async def send_approval_notification(self, visitor: Visitor) -> None:
+        # 使用外部邮件服务
+        await send_email(
+            to=visitor.email,
+            subject="访客审批通知",
+            body=f"尊敬的{visitor.name}，您的访客申请已获批准。"
+        )
+```
+
+### API Layer (API层)
+**职责范围**: HTTP接口，请求响应处理  
+**允许依赖**: Application Layer
+**禁止行为**: 
+- 不得包含业务逻辑
+- 不得直接访问Infrastructure层
+- 不得直接操作领域对象
+
+```python
+# ✅ 正确示例 - API控制器
+@router.post("/visitors/{visitor_id}/approve")
+async def approve_visitor(
+    visitor_id: int,
+    tenant_id: str = Depends(get_current_tenant),
+    visitor_service: VisitorApplicationService = Depends(get_visitor_service)
+) -> VisitorResponse:
+    """审批访客"""
+    try:
+        visitor_dto = await visitor_service.approve_visitor(visitor_id, tenant_id)
+        return VisitorResponse.from_dto(visitor_dto)
+    except VisitorNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DomainException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ❌ 错误示例 - 在API层包含业务逻辑
+@router.post("/visitors/{visitor_id}/approve")
+async def approve_visitor(visitor_id: int, db: AsyncSession = Depends(get_db)):
+    # 违反：API层不应包含业务逻辑
+    visitor = await db.get(Visitor, visitor_id)
+    if visitor.status != "pending":
+        raise HTTPException(400, "只有待审批访客才能被审批")
+    visitor.status = "approved"
+    await db.commit()
+```
+
+## 依赖规则
+
+### 依赖方向约束
+```
+API Layer ──────→ Application Layer
+                      ↓
+Infrastructure ──→ Domain Layer
+     ↑
+     └─── 实现接口定义 ───┘
+```
+
+### 接口隔离原则
+- **Repository接口**: 在Application层定义，Infrastructure层实现
+- **Service接口**: 在Application层定义，Infrastructure层实现  
+- **DTO转换**: Application层与其他层的数据边界
+
+```python
+# Application层定义接口
+class VisitorRepository(ABC):
+    @abstractmethod
+    async def get_by_id(self, visitor_id: int, tenant_id: str) -> Optional[Visitor]:
+        pass
+    
+    @abstractmethod  
+    async def save(self, visitor: Visitor) -> None:
+        pass
+
+# Infrastructure层实现接口
+class SqlAlchemyVisitorRepository(VisitorRepository):
+    # 具体实现...
+    pass
+```
+
+## 数据传输对象 (DTO)
+
+### DTO设计原则
+- **层间边界**: 每层都应有自己的数据表示
+- **类型安全**: 使用Pydantic进行验证
+- **转换明确**: 显式的转换方法
+
+```python
+# API层 - 请求响应模型
+class VisitorCreateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50)
+    phone: str = Field(..., pattern=r"^1[3-9]\d{9}$")
+    company: str = Field(..., max_length=100)
+
+class VisitorResponse(BaseModel):
+    id: int
+    name: str
+    phone: str
+    company: str
+    status: str
+    created_at: datetime
+
+# Application层 - 业务DTO
+class VisitorDto:
+    def __init__(self, id: int, name: str, phone: str, company: str, status: VisitorStatus):
+        self.id = id
+        self.name = name
+        self.phone = phone
+        self.company = company
+        self.status = status
+    
+    @classmethod
+    def from_entity(cls, visitor: Visitor) -> "VisitorDto":
+        return cls(
+            id=visitor.id,
+            name=visitor.name,
+            phone=visitor.phone,
+            company=visitor.company,
+            status=visitor.status
+        )
+```
+
+## 检查清单
+
+### 架构合规检查
+- [ ] 每个类是否位于正确的层次？
+- [ ] 依赖方向是否符合规则？
+- [ ] 是否存在跨层直接访问？
+- [ ] Interface是否在正确的层定义？
+- [ ] DTO转换是否明确且完整？
+
+### 领域层检查
+- [ ] 是否包含纯业务逻辑？
+- [ ] 是否没有外部依赖？
+- [ ] 是否包含完整的业务验证？
+- [ ] 实体状态变更是否通过方法封装？
+
+### 应用层检查  
+- [ ] 是否正确编排业务流程？
+- [ ] 是否通过接口访问基础设施？
+- [ ] 是否包含事务管理？
+- [ ] 异常处理是否完整？
+
+### 基础设施层检查
+- [ ] 是否实现了所有定义的接口？
+- [ ] 数据库操作是否正确封装？
+- [ ] 外部服务调用是否有错误处理？
+- [ ] 是否正确处理数据模型转换？
+
+### API层检查
+- [ ] 是否只包含HTTP相关逻辑？
+- [ ] 请求验证是否完整？
+- [ ] 错误响应是否规范？  
+- [ ] 是否正确使用依赖注入？

@@ -1,0 +1,100 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# API开发规范
+mdc:visitor-management-core.mdc
+mdc:clean-architecture.mdc
+mdc:security-standards.mdc
+
+## 核心API开发原则
+
+### FastAPI路由组织
+- 所有API路由必须在 `src/api/v1/` 目录下按业务域组织
+- 路由文件命名：`{domain}_router.py` (如: visitor_router.py, auth_router.py)
+- 每个路由文件必须包含完整的路由器定义和依赖注入
+- 使用APIRouter进行模块化组织，支持前缀和标签分组
+
+### 请求响应模式
+- 所有API端点必须使用Pydantic V2模型进行请求验证
+- 响应模型必须继承自 `BaseResponse` 或使用Response模式
+- 请求模型命名：`{Operation}{Entity}Request` (如: CreateVisitorRequest)
+- 响应模型命名：`{Entity}Response` 或 `{Operation}{Entity}Response`
+- 分页响应必须使用PaginatedResponse[T]模式
+
+### 错误处理标准
+- 使用标准化HTTPException抛出错误
+- 错误代码必须遵循HTTP状态码标准
+- 错误响应格式：`{"detail": "错误信息", "error_code": "BUSINESS_CODE"}`
+- 业务异常必须通过自定义Exception类处理
+- 所有API必须包含适当的错误文档说明
+
+### 依赖注入模式
+- 数据库会话：使用 `get_db` 依赖
+- 当前用户：使用 `get_current_user` 依赖  
+- 权限验证：使用 `require_permission` 依赖工厂
+- 租户隔离：所有数据操作必须包含tenant_id过滤
+- 服务层注入：通过依赖注入获取应用服务实例
+
+### API文档规范
+- 每个端点必须包含详细的docstring描述
+- 使用OpenAPI tags进行端点分组
+- 请求/响应模型必须包含示例数据
+- 错误响应必须在文档中明确说明
+- API版本控制通过路径前缀实现：`/api/v1/`
+
+### 性能优化要求
+- 查询端点必须支持分页，默认每页20条记录
+- 批量操作必须限制单次操作数量（最大100条）
+- 长时间运行的操作必须异步处理
+- 数据库查询必须使用适当的索引和查询优化
+- 响应数据必须包含适当的缓存头
+
+### 多租户API规范
+- 所有端点必须验证当前用户的tenant_id
+- 数据查询必须包含租户隔离过滤
+- 跨租户操作必须明确禁止
+- API响应不得泄露其他租户数据
+- 租户信息通过JWT token传递和验证
+
+### 异步处理规范
+- 所有数据库操作必须使用async/await
+- I/O密集型操作必须异步执行
+- 后台任务使用Celery进行队列处理
+- WebSocket连接必须支持租户隔离
+- 异步错误必须正确捕获和记录
+
+### API安全要求
+- 所有端点必须验证JWT token有效性
+- 敏感操作必须进行权限验证
+- 输入数据必须进行严格验证和清理
+- 输出数据必须防止敏感信息泄露
+- API限流必须按租户和用户分别配置
+
+### 示例端点实现
+```python
+@router.post("/visitors", response_model=VisitorResponse)
+async def create_visitor(
+    request: CreateVisitorRequest,
+    current_user: User = Depends(get_current_user),
+    visitor_service: VisitorService = Depends(get_visitor_service),
+    _: None = Depends(require_permission("visitor:create"))
+):
+    """创建访客记录
+    
+    需要权限：visitor:create
+    """
+    visitor = await visitor_service.create_visitor(
+        request, 
+        tenant_id=current_user.tenant_id
+    )
+    return VisitorResponse.from_domain(visitor)
+```
+
+### 测试集成要求
+- 每个API端点必须包含单元测试
+- 集成测试必须覆盖权限验证逻辑
+- 测试必须包含多租户隔离验证
+- 性能测试必须验证响应时间要求
+- 安全测试必须验证认证授权流程
