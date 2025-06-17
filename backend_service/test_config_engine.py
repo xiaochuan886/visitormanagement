@@ -30,13 +30,13 @@ class ConfigEngineAPITester:
             try:
                 # 使用已有的测试用户进行认证
                 auth_data = {
-                    "username": "admin@test.com",
+                    "username": "admin",
                     "password": "admin123"
                 }
                 
                 response = await client.post(
                     f"{self.base_url}/auth/login",
-                    data=auth_data
+                    json=auth_data
                 )
                 
                 if response.status_code == 200:

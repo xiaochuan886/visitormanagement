@@ -5,7 +5,7 @@ from datetime import datetime, time
 from typing import Optional, List
 from pydantic import BaseModel, Field, EmailStr
 
-from app.domain.enums import SiteStatus
+from app.domain.base_enums import SiteStatus
 
 
 class SiteCreateDTO(BaseModel):

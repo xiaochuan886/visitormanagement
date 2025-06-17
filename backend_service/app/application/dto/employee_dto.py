@@ -5,7 +5,7 @@ from datetime import datetime, date
 from typing import Optional, List
 from pydantic import BaseModel, Field, EmailStr
 
-from app.domain.enums import EmployeeStatus, Gender
+from app.domain.base_enums import EmployeeStatus, Gender
 
 
 class EmployeeCreateDTO(BaseModel):

@@ -15,7 +15,7 @@ from app.application.dto.department_dto import (
     DepartmentQueryDTO
 )
 from app.application.services.department_service import DepartmentService
-from app.domain.enums import EmployeeStatus
+from app.domain.base_enums import EmployeeStatus
 
 router = APIRouter()
 

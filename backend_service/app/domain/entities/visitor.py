@@ -6,7 +6,7 @@ from typing import Optional, List
 from pydantic import Field, EmailStr
 
 from .base import TenantEntity, DomainEvent
-from ..enums import VisitorStatus, Gender, ApprovalOutcome, VisitPurpose
+from ..base_enums import VisitorStatus, Gender, ApprovalOutcome, VisitPurpose
 
 
 class Visitor(TenantEntity):

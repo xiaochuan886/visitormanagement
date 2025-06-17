@@ -26,55 +26,53 @@ from app.domain.exceptions.config_exceptions import (
     ConfigurationNotFoundException,
     DuplicateConfigurationException
 )
-from app.domain.events.config_events import (
-    FormConfigurationCreated,
-    FormConfigurationUpdated,
-    FormConfigurationActivated,
-    FormConfigurationDeactivated
-)
+# from app.domain.events.config_events import (
+#     FormConfigurationCreated,
+#     FormConfigurationUpdated,
+#     FormConfigurationActivated,
+#     FormConfigurationDeactivated
+# )
 from app.infrastructure.database.models import FormConfiguration, FormFieldConfiguration
 from app.core.logging import LoggerMixin
-from app.core.cache import CacheManager
-from app.core.events import EventPublisher
+from app.infrastructure.cache.redis_client import get_redis
+# from app.core.events import EventPublisher
 
 
 class FormConfigurationService(LoggerMixin):
     """表单配置服务"""
     
-    def __init__(
-        self,
-        form_config_repository: IFormConfigurationRepository,
-        form_field_repository: IFormFieldConfigurationRepository,
-        cache_manager: CacheManager,
-        event_publisher: EventPublisher
-    ):
-        self.form_config_repo = form_config_repository
-        self.form_field_repo = form_field_repository
-        self.cache = cache_manager
-        self.event_publisher = event_publisher
+    def __init__(self, session):
+        from app.infrastructure.repositories.form_config_repository import (
+            FormConfigurationRepository, 
+            FormFieldConfigurationRepository
+        )
+        self.session = session
+        self.form_config_repo = FormConfigurationRepository(session)
+        self.form_field_repo = FormFieldConfigurationRepository(session)
+        # self.event_publisher = event_publisher  # 临时注释
         self.logger.info("表单配置服务初始化完成")
     
     async def create_form_configuration(
         self,
-        create_dto: FormConfigurationCreateDTO,
         tenant_id: str,
-        user_id: str
+        form_config: FormConfigurationCreateDTO,
+        created_by: str
     ) -> FormConfigurationResponseDTO:
         """创建表单配置"""
         try:
-            self.logger.info(f"开始创建表单配置: {create_dto.form_name}")
+            self.logger.info(f"开始创建表单配置: {form_config.form_name}")
             
             # 检查名称重复
             existing_config = await self.form_config_repo.find_by_name(
-                create_dto.form_name, UUID(tenant_id)
+                form_config.form_name, UUID(tenant_id)
             )
             if existing_config:
                 raise DuplicateConfigurationException(
-                    "表单配置", create_dto.form_name, "name"
+                    "表单配置", form_config.form_name, "name"
                 )
             
             # 验证表单配置
-            validation_result = await self._validate_form_configuration(create_dto)
+            validation_result = await self._validate_form_configuration(form_config)
             if not validation_result.is_valid:
                 raise FormValidationException(
                     "表单配置验证失败",
@@ -84,34 +82,34 @@ class FormConfigurationService(LoggerMixin):
             
             # 获取最新版本号
             latest_version = await self.form_config_repo.get_latest_version(
-                create_dto.form_type.value, UUID(tenant_id)
+                form_config.form_type.value, UUID(tenant_id)
             )
             
             # 如果设为默认，先取消其他默认配置
-            if create_dto.is_default:
-                await self._unset_default_forms(create_dto.form_type.value, tenant_id)
+            if form_config.is_default:
+                await self._unset_default_forms(form_config.form_type.value, tenant_id)
             
             # 创建表单配置
-            form_config = FormConfiguration(
-                form_name=create_dto.form_name,
-                form_type=create_dto.form_type.value,
+            form_configuration = FormConfiguration(
+                form_name=form_config.form_name,
+                form_type=form_config.form_type.value,
                 form_version=latest_version + 1,
-                description=create_dto.description,
-                form_schema=create_dto.form_schema or {},
-                ui_schema=create_dto.ui_schema or {},
-                validation_schema=create_dto.validation_schema or {},
+                description=form_config.description,
+                form_schema=form_config.form_schema or {},
+                ui_schema=form_config.ui_schema or {},
+                validation_schema=form_config.validation_schema or {},
                 is_active=True,
-                is_default=create_dto.is_default,
+                is_default=form_config.is_default,
                 tenant_id=tenant_id,
-                created_by=user_id,
-                updated_by=user_id
+                created_by=created_by,
+                updated_by=created_by
             )
             
             # 保存表单配置
-            saved_config = await self.form_config_repo.create(form_config)
+            saved_config = await self.form_config_repo.create(form_configuration)
             
             # 创建表单字段
-            for field_dto in create_dto.form_fields:
+            for field_dto in form_config.form_fields:
                 field_config = FormFieldConfiguration(
                     form_configuration_id=saved_config.id,
                     field_key=field_dto.field_key,
@@ -131,20 +129,20 @@ class FormConfigurationService(LoggerMixin):
                 await self.form_field_repo.create(field_config)
             
             # 清除缓存
-            await self._clear_form_cache(tenant_id, create_dto.form_type.value)
+            await self._clear_form_cache(tenant_id, form_config.form_type.value)
             
-            # 发布事件
-            event = FormConfigurationCreated(
-                aggregate_id=str(saved_config.id),
-                tenant_id=tenant_id,
-                user_id=user_id,
-                form_type=create_dto.form_type.value,
-                form_name=create_dto.form_name,
-                field_count=len(create_dto.form_fields),
-                has_validation_rules=bool(create_dto.validation_schema),
-                has_conditional_logic=any(field.conditional_logic for field in create_dto.form_fields)
-            )
-            await self.event_publisher.publish(event)
+            # 发布事件 (临时注释)
+            # event = FormConfigurationCreated(
+            #     aggregate_id=str(saved_config.id),
+            #     tenant_id=tenant_id,
+            #     user_id=user_id,
+            #     form_type=create_dto.form_type.value,
+            #     form_name=create_dto.form_name,
+            #     field_count=len(create_dto.form_fields),
+            #     has_validation_rules=bool(create_dto.validation_schema),
+            #     has_conditional_logic=any(field.conditional_logic for field in create_dto.form_fields)
+            # )
+            # await self.event_publisher.publish(event)
             
             # 返回响应
             response = await self._build_form_response(saved_config)
@@ -275,7 +273,7 @@ class FormConfigurationService(LoggerMixin):
                 changes=changes,
                 field_changes=field_changes
             )
-            await self.event_publisher.publish(event)
+            # await self.event_publisher.publish(event)
             
             # 返回响应
             response = await self._build_form_response(updated_config)
@@ -295,9 +293,12 @@ class FormConfigurationService(LoggerMixin):
     ) -> FormConfigurationResponseDTO:
         """获取表单配置详情"""
         try:
+            self.logger.info(f"获取表单配置: {config_id}")
+            
             # 先尝试从缓存获取
             cache_key = f"form_config:{tenant_id}:{config_id}"
-            cached_result = await self.cache.get(cache_key)
+            cache = await self._get_cache()
+            cached_result = await cache.get(cache_key)
             if cached_result:
                 return FormConfigurationResponseDTO.parse_raw(cached_result)
             
@@ -306,15 +307,14 @@ class FormConfigurationService(LoggerMixin):
             if not config or config.tenant_id != tenant_id:
                 raise ConfigurationNotFoundException("表单配置", str(config_id))
             
+            # 构建响应
             response = await self._build_form_response(config)
             
             # 缓存结果
-            await self.cache.set(cache_key, response.json(), expire=3600)
+            await cache.set(cache_key, response.json(), expire=3600)
             
             return response
             
-        except ConfigurationNotFoundException:
-            raise
         except Exception as e:
             self.logger.error(f"获取表单配置失败: {str(e)}")
             raise FormConfigurationException(f"获取表单配置失败: {str(e)}")
@@ -401,7 +401,7 @@ class FormConfigurationService(LoggerMixin):
                     form_name=config.form_name,
                     reason="用户删除"
                 )
-                await self.event_publisher.publish(event)
+                # await self.event_publisher.publish(event)
                 
                 self.logger.info(f"表单配置删除成功: {config_id}")
             
@@ -654,12 +654,23 @@ class FormConfigurationService(LoggerMixin):
             await self.form_config_repo.update(config)
     
     async def _clear_form_cache(self, tenant_id: str, form_type: str):
-        """清除表单相关缓存"""
-        cache_patterns = [
-            f"form_config:{tenant_id}:*",
-            f"form_render:{tenant_id}:{form_type}",
-            f"form_list:{tenant_id}:*"
-        ]
-        
-        for pattern in cache_patterns:
-            await self.cache.delete_pattern(pattern) 
+        """清除表单缓存"""
+        try:
+            cache = await self._get_cache()
+            # 清除相关缓存模式
+            cache_patterns = [
+                f"form_config:{tenant_id}:*",
+                f"form_list:{tenant_id}:{form_type}:*",
+                f"form_render:{tenant_id}:{form_type}"
+            ]
+            
+            for pattern in cache_patterns:
+                keys = await cache.keys(pattern)
+                for key in keys:
+                    await cache.delete(key)
+        except Exception as e:
+            self.logger.warning(f"清除缓存失败: {str(e)}")
+
+    async def _get_cache(self):
+        """获取Redis缓存客户端"""
+        return await get_redis() 

@@ -15,7 +15,7 @@ from app.application.dto.site_dto import (
     SiteQueryDTO
 )
 from app.application.services.site_service import SiteService
-from app.domain.enums import SiteStatus
+from app.domain.base_enums import SiteStatus
 
 router = APIRouter()
 

@@ -24,7 +24,7 @@ from app.application.dto.visitor_dto import (
     VisitorCheckoutDTO,
     VisitorQueryDTO
 )
-from app.domain.enums import VisitorStatus, ApprovalOutcome
+from app.domain.base_enums import VisitorStatus, ApprovalOutcome
 from app.infrastructure.cache.redis_client import get_redis
 from app.core.config import settings
 

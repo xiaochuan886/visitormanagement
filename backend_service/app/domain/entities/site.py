@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import Field
 
 from .base import TenantEntity
-from ..enums import SiteStatus
+from ..base_enums import SiteStatus
 
 
 class Site(TenantEntity):

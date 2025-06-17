@@ -8,7 +8,7 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.visitor import Visitor
-from app.domain.enums import VisitStatus
+from app.domain.base_enums import VisitorStatus
 from app.application.interfaces.repository import IVisitorRepository
 from app.infrastructure.database.models import VisitorModel
 from app.core.logging import LoggerMixin

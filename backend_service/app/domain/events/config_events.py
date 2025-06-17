@@ -11,13 +11,13 @@ from uuid import UUID, uuid4
 @dataclass
 class DomainEvent:
     """领域事件基类"""
-    event_id: UUID
-    occurred_at: datetime
     aggregate_id: str
     aggregate_type: str
     event_type: str
     event_version: int
     tenant_id: str
+    event_id: Optional[UUID] = None
+    occurred_at: Optional[datetime] = None
     user_id: Optional[str] = None
     correlation_id: Optional[str] = None
     causation_id: Optional[str] = None
@@ -37,11 +37,11 @@ class DomainEvent:
 @dataclass
 class FormConfigurationCreated(DomainEvent):
     """表单配置创建事件"""
-    form_type: str
-    form_name: str
-    field_count: int
-    has_validation_rules: bool
-    has_conditional_logic: bool
+    form_type: str = ""
+    form_name: str = ""
+    field_count: int = 0
+    has_validation_rules: bool = False
+    has_conditional_logic: bool = False
     
     def __post_init__(self):
         super().__post_init__()

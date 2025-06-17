@@ -5,7 +5,7 @@ from datetime import datetime, time
 from typing import Optional, List
 from pydantic import BaseModel, Field, EmailStr
 
-from app.domain.enums import VisitorStatus, Gender, ApprovalOutcome, VisitPurpose
+from app.domain.base_enums import VisitorStatus, Gender, ApprovalOutcome, VisitPurpose
 
 
 class VisitorCreateDTO(BaseModel):

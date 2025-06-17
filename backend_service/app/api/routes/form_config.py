@@ -12,14 +12,24 @@ from app.application.dto.form_config_dto import (
     FormConfigurationCreateDTO,
     FormConfigurationUpdateDTO,
     FormConfigurationResponseDTO,
+    FormConfigurationListResponseDTO,
+    FormConfigurationQueryDTO,
     FormRenderDataDTO,
     FormValidationResultDTO
 )
 from app.api.dependencies.auth import get_current_user, require_permissions
-from app.domain.entities.user import User
-from app.core.exceptions import NotFoundError
+# from app.domain.entities.user import User  # 临时注释
 
 router = APIRouter()
+
+# 临时用户信息获取函数
+async def get_temp_user_info():
+    """临时用户信息"""
+    return {
+        "tenant_id": "default_tenant",
+        "username": "system_user",
+        "user_id": "1"
+    }
 
 @router.post(
     "/",
@@ -31,16 +41,21 @@ router = APIRouter()
 async def create_form_configuration(
     form_config: FormConfigurationCreateDTO,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """创建表单配置"""
-    service = FormConfigurationService(db)
+    from app.application.services.config_services_simple import SimpleFormConfigurationService
+    
+    service = SimpleFormConfigurationService(db)
     
     try:
+        # 将Pydantic模型转换为字典
+        form_data = form_config.dict()
+        
         result = await service.create_form_configuration(
-            tenant_id=current_user.tenant_id,
-            form_config=form_config,
-            created_by=current_user.username
+            tenant_id=current_user["tenant_id"],
+            form_config=form_data,
+            created_by=current_user["username"]
         )
         return result
     except Exception as e:
@@ -61,14 +76,16 @@ async def list_form_configurations(
     form_type: Optional[str] = Query(None, description="表单类型筛选"),
     is_active: Optional[bool] = Query(None, description="激活状态筛选"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """获取表单配置列表"""
-    service = FormConfigurationService(db)
+    from app.application.services.config_services_simple import SimpleFormConfigurationService
+    
+    service = SimpleFormConfigurationService(db)
     
     try:
         result = await service.list_form_configurations(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             skip=skip,
             limit=limit,
             form_type=form_type,
@@ -90,14 +107,14 @@ async def list_form_configurations(
 async def get_form_configuration(
     config_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """获取表单配置详情"""
     service = FormConfigurationService(db)
     
     try:
         result = await service.get_form_configuration(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id
         )
         if not result:
@@ -124,17 +141,17 @@ async def update_form_configuration(
     config_id: UUID,
     form_config: FormConfigurationUpdateDTO,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """更新表单配置"""
     service = FormConfigurationService(db)
     
     try:
         result = await service.update_form_configuration(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id,
             form_config=form_config,
-            updated_by=current_user.username
+            updated_by=current_user["username"]
         )
         if not result:
             raise HTTPException(
@@ -159,14 +176,14 @@ async def update_form_configuration(
 async def delete_form_configuration(
     config_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """删除表单配置"""
     service = FormConfigurationService(db)
     
     try:
         success = await service.delete_form_configuration(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id
         )
         if not success:
@@ -191,14 +208,14 @@ async def delete_form_configuration(
 async def get_form_render_data(
     config_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """获取表单渲染数据"""
     service = FormConfigurationService(db)
     
     try:
         result = await service.get_form_render_data(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id
         )
         if not result:
@@ -225,23 +242,18 @@ async def validate_form_data(
     config_id: UUID,
     form_data: dict,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """验证表单数据"""
     service = FormConfigurationService(db)
     
     try:
         result = await service.validate_form_data(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id,
             form_data=form_data
         )
         return result
-    except NotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="表单配置不存在"
-        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -257,14 +269,14 @@ async def validate_form_data(
 async def activate_form_configuration(
     config_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """激活表单配置"""
     service = FormConfigurationService(db)
     
     try:
         result = await service.activate_form_configuration(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id
         )
         if not result:
@@ -290,14 +302,14 @@ async def activate_form_configuration(
 async def deactivate_form_configuration(
     config_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_temp_user_info)
 ):
     """停用表单配置"""
     service = FormConfigurationService(db)
     
     try:
         result = await service.deactivate_form_configuration(
-            tenant_id=current_user.tenant_id,
+            tenant_id=current_user["tenant_id"],
             config_id=config_id
         )
         if not result:

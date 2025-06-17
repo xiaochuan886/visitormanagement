@@ -13,7 +13,7 @@ from app.application.interfaces.repository import (
 from app.domain.enums.config_enums import BusinessRuleCategory, RuleExecutionResult
 from app.domain.exceptions.config_exceptions import (
     BusinessRuleException,
-    RuleExecutionException,
+    BusinessRuleExecutionException,
     ConfigurationNotFoundException,
     DuplicateConfigurationException
 )
@@ -24,13 +24,14 @@ from app.core.logging import LoggerMixin
 class BusinessRuleService(LoggerMixin):
     """业务规则服务"""
     
-    def __init__(
-        self,
-        business_rule_repository: IBusinessRuleRepository,
-        rule_execution_log_repository: IRuleExecutionLogRepository
-    ):
-        self.business_rule_repo = business_rule_repository
-        self.rule_execution_log_repo = rule_execution_log_repository
+    def __init__(self, session):
+        from app.infrastructure.repositories.business_rule_repository import (
+            BusinessRuleRepository,
+            RuleExecutionLogRepository
+        )
+        self.session = session
+        self.business_rule_repo = BusinessRuleRepository(session)
+        self.rule_execution_log_repo = RuleExecutionLogRepository(session)
         self.logger.info("业务规则服务初始化完成")
     
     async def get_business_rule(
@@ -195,7 +196,7 @@ class BusinessRuleService(LoggerMixin):
             
         except Exception as e:
             self.logger.error(f"执行业务规则失败: {str(e)}")
-            raise RuleExecutionException(f"执行业务规则失败: {str(e)}")
+            raise BusinessRuleExecutionException(f"执行业务规则失败: {str(e)}")
     
     async def get_rule_execution_history(
         self,

@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import Field, EmailStr
 
 from .base import TenantEntity
-from ..enums import Gender, EmployeeStatus
+from ..base_enums import Gender, EmployeeStatus
 
 
 class Employee(TenantEntity):

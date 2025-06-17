@@ -18,7 +18,7 @@ from app.application.dto.employee_dto import (
     EmployeeListResponseDTO,
     EmployeeQueryDTO
 )
-from app.domain.enums import EmployeeStatus
+from app.domain.base_enums import EmployeeStatus
 from app.infrastructure.cache.redis_client import get_redis
 from app.core.serializers import serialize_for_cache, deserialize_from_cache
 

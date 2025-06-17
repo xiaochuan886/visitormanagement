@@ -15,7 +15,7 @@ from app.application.dto.site_dto import (
     SiteListResponseDTO,
     SiteQueryDTO
 )
-from app.domain.enums import SiteStatus
+from app.domain.base_enums import SiteStatus
 from app.infrastructure.cache.redis_client import get_redis
 from app.core.config import settings
 

@@ -15,7 +15,7 @@ from app.application.dto.department_dto import (
     DepartmentListResponseDTO,
     DepartmentQueryDTO
 )
-from app.domain.enums import EmployeeStatus
+from app.domain.base_enums import EmployeeStatus
 from app.infrastructure.cache.redis_client import get_redis
 from app.core.config import settings
 
