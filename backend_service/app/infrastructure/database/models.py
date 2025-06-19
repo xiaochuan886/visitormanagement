@@ -533,4 +533,243 @@ SpatialEntity = SpatialEntityModel
 WorkflowConfiguration = WorkflowConfigurationModel
 WorkflowExecution = WorkflowExecutionModel
 BusinessRule = BusinessRuleModel
-RuleExecutionLog = RuleExecutionLogModel 
+RuleExecutionLog = RuleExecutionLogModel
+
+# 场景管理模型
+ScenarioTemplate = ScenarioTemplateModel
+ScenarioInstance = ScenarioInstanceModel
+ScenarioExecution = ScenarioExecutionModel
+ScenarioRoutingRule = ScenarioRoutingRuleModel
+ScenarioAnalytics = ScenarioAnalyticsModel
+
+class ScenarioTemplateModel(Base, TenantModel):
+    """场景模板模型 - 定义可复用的场景模板"""
+    __tablename__ = "scenario_templates"
+    
+    id = Column(postgresql.UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    template_name = Column(String(100), nullable=False)                # 模板名称
+    template_code = Column(String(50), nullable=False)                 # 模板代码（唯一标识）
+    template_version = Column(Integer, default=1, nullable=False)      # 模板版本
+    template_category = Column(String(50), nullable=False)             # 模板分类
+    template_description = Column(Text)                                # 模板描述
+    
+    # 预制模板标识
+    is_builtin = Column(Boolean, default=False, nullable=False)        # 是否为内置模板
+    is_template_active = Column(Boolean, default=True, nullable=False) # 是否启用
+    
+    # 场景特征定义
+    scenario_features = Column(postgresql.JSONB, nullable=False)       # 场景特征配置
+    default_configurations = Column(postgresql.JSONB, nullable=False)  # 默认配置集合
+    
+    # 模板元数据
+    supported_roles = Column(postgresql.JSONB)                         # 支持的角色类型 
+    trigger_conditions = Column(postgresql.JSONB)                      # 触发条件模板
+    template_tags = Column(postgresql.JSONB)                          # 模板标签
+    
+    # 使用统计
+    usage_count = Column(Integer, default=0, nullable=False)          # 使用次数
+    last_used_at = Column(DateTime(timezone=True))                    # 最后使用时间
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("template_category IN ('visitor_management', 'employee_management', 'event_management', 'security_management', 'custom')", name='chk_template_category'),
+        CheckConstraint("template_version >= 1", name='chk_template_version'),
+        CheckConstraint("usage_count >= 0", name='chk_usage_count'),
+    )
+    
+    # 关系
+    scenario_instances = relationship("ScenarioInstanceModel", back_populates="scenario_template")
+
+
+class ScenarioInstanceModel(Base, TenantModel):
+    """场景实例模型 - 基于模板创建的具体场景"""
+    __tablename__ = "scenario_instances"
+    
+    id = Column(postgresql.UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    instance_name = Column(String(100), nullable=False)               # 实例名称
+    instance_code = Column(String(50), nullable=False)                # 实例代码（在租户内唯一）
+    
+    # 模板关联
+    template_id = Column(postgresql.UUID(as_uuid=True), ForeignKey('scenario_templates.id'), nullable=False)
+    
+    # 实例状态
+    instance_status = Column(String(50), default='draft', nullable=False)  # draft, active, inactive, archived
+    priority_level = Column(Integer, default=1, nullable=False)            # 优先级（1-10）
+    
+    # 场景配置（覆盖模板默认配置）
+    custom_configurations = Column(postgresql.JSONB)                       # 自定义配置
+    form_config_overrides = Column(postgresql.JSONB)                      # 表单配置覆盖
+    workflow_config_overrides = Column(postgresql.JSONB)                  # 工作流配置覆盖
+    business_rule_overrides = Column(postgresql.JSONB)                    # 业务规则覆盖
+    spatial_config_overrides = Column(postgresql.JSONB)                   # 空间配置覆盖
+    
+    # 路由和触发
+    routing_rules = Column(postgresql.JSONB, nullable=False)               # 路由规则
+    trigger_conditions = Column(postgresql.JSONB, nullable=False)          # 触发条件
+    auto_routing_enabled = Column(Boolean, default=True, nullable=False)   # 是否启用自动路由
+    
+    # 使用范围
+    applicable_sites = Column(postgresql.JSONB)                           # 适用站点
+    applicable_departments = Column(postgresql.JSONB)                     # 适用部门
+    applicable_roles = Column(postgresql.JSONB)                          # 适用角色
+    
+    # 时间有效性
+    effective_from = Column(DateTime(timezone=True))                      # 生效时间
+    effective_until = Column(DateTime(timezone=True))                     # 失效时间
+    
+    # 统计和分析
+    execution_count = Column(Integer, default=0, nullable=False)          # 执行次数
+    success_count = Column(Integer, default=0, nullable=False)            # 成功次数
+    last_executed_at = Column(DateTime(timezone=True))                    # 最后执行时间
+    average_execution_time = Column(Float)                                # 平均执行时间（秒）
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("instance_status IN ('draft', 'active', 'inactive', 'archived', 'testing')", name='chk_instance_status'),
+        CheckConstraint("priority_level >= 1 AND priority_level <= 10", name='chk_priority_level'),
+        CheckConstraint("execution_count >= 0", name='chk_execution_count'),
+        CheckConstraint("success_count >= 0", name='chk_success_count'),
+        CheckConstraint("success_count <= execution_count", name='chk_success_rate'),
+        CheckConstraint("effective_until IS NULL OR effective_until > effective_from", name='chk_instance_effective_dates'),
+        CheckConstraint("average_execution_time IS NULL OR average_execution_time >= 0", name='chk_execution_time'),
+    )
+    
+    # 关系
+    scenario_template = relationship("ScenarioTemplateModel", back_populates="scenario_instances")
+    scenario_executions = relationship("ScenarioExecutionModel", back_populates="scenario_instance")
+
+
+class ScenarioExecutionModel(Base, TenantModel):
+    """场景执行模型 - 记录场景执行历史"""
+    __tablename__ = "scenario_executions"
+    
+    id = Column(postgresql.UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    scenario_instance_id = Column(postgresql.UUID(as_uuid=True), ForeignKey('scenario_instances.id'), nullable=False)
+    
+    # 执行信息
+    execution_status = Column(String(50), nullable=False)                 # pending, running, completed, failed, cancelled
+    execution_type = Column(String(50), nullable=False)                   # manual, automatic, scheduled, triggered
+    
+    # 触发信息
+    trigger_source = Column(String(50))                                   # api, ui, system, workflow
+    trigger_user_id = Column(String(100))                                 # 触发用户
+    trigger_context = Column(postgresql.JSONB)                           # 触发上下文
+    
+    # 目标实体
+    target_entity_type = Column(String(50), nullable=False)               # visitor, employee, event
+    target_entity_id = Column(String(100), nullable=False)                # 目标实体ID
+    target_entity_data = Column(postgresql.JSONB)                         # 目标实体数据快照
+    
+    # 执行过程
+    execution_steps = Column(postgresql.JSONB)                            # 执行步骤记录
+    current_step = Column(String(100))                                    # 当前执行步骤
+    execution_data = Column(postgresql.JSONB)                            # 执行过程数据
+    step_results = Column(postgresql.JSONB)                              # 各步骤结果
+    
+    # 时间信息
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True))
+    execution_duration = Column(Float)                                    # 执行时长（秒）
+    
+    # 结果信息
+    execution_result = Column(postgresql.JSONB)                          # 执行结果
+    error_details = Column(Text)                                         # 错误详情
+    retry_count = Column(Integer, default=0, nullable=False)             # 重试次数
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("execution_status IN ('pending', 'running', 'completed', 'failed', 'cancelled', 'timeout')", name='chk_scenario_execution_status'),
+        CheckConstraint("execution_type IN ('manual', 'automatic', 'scheduled', 'triggered', 'test')", name='chk_execution_type'),
+        CheckConstraint("trigger_source IN ('api', 'ui', 'system', 'workflow', 'scheduler', 'webhook')", name='chk_trigger_source'),
+        CheckConstraint("execution_duration IS NULL OR execution_duration >= 0", name='chk_execution_duration'),
+        CheckConstraint("retry_count >= 0", name='chk_retry_count'),
+    )
+    
+    # 关系
+    scenario_instance = relationship("ScenarioInstanceModel", back_populates="scenario_executions")
+
+
+class ScenarioRoutingRuleModel(Base, TenantModel):
+    """场景路由规则模型 - 定义场景自动路由规则"""
+    __tablename__ = "scenario_routing_rules"
+    
+    id = Column(postgresql.UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    rule_name = Column(String(100), nullable=False)                      # 规则名称
+    rule_description = Column(Text)                                      # 规则描述
+    
+    # 路由规则配置
+    rule_priority = Column(Integer, default=1, nullable=False)           # 规则优先级（1-100）
+    rule_conditions = Column(postgresql.JSONB, nullable=False)           # 路由条件
+    target_scenario_ids = Column(postgresql.JSONB, nullable=False)       # 目标场景ID列表
+    
+    # 条件匹配设置
+    condition_logic = Column(String(20), default='AND', nullable=False)  # AND, OR
+    match_strategy = Column(String(50), default='first_match', nullable=False) # first_match, best_match, all_match
+    
+    # 规则状态
+    is_active = Column(Boolean, default=True, nullable=False)           # 是否启用
+    effective_from = Column(DateTime(timezone=True))                     # 生效时间
+    effective_until = Column(DateTime(timezone=True))                    # 失效时间
+    
+    # 使用统计
+    matched_count = Column(Integer, default=0, nullable=False)          # 匹配次数
+    success_count = Column(Integer, default=0, nullable=False)          # 成功次数
+    last_matched_at = Column(DateTime(timezone=True))                   # 最后匹配时间
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("rule_priority >= 1 AND rule_priority <= 100", name='chk_routing_rule_priority'),
+        CheckConstraint("condition_logic IN ('AND', 'OR')", name='chk_condition_logic'),
+        CheckConstraint("match_strategy IN ('first_match', 'best_match', 'all_match', 'weighted_match')", name='chk_match_strategy'),
+        CheckConstraint("matched_count >= 0", name='chk_matched_count'),
+        CheckConstraint("success_count >= 0", name='chk_routing_success_count'),
+        CheckConstraint("success_count <= matched_count", name='chk_routing_success_rate'),
+        CheckConstraint("effective_until IS NULL OR effective_until > effective_from", name='chk_routing_effective_dates'),
+    )
+
+
+class ScenarioAnalyticsModel(Base, TenantModel):
+    """场景分析模型 - 场景使用分析和统计"""
+    __tablename__ = "scenario_analytics"
+    
+    id = Column(postgresql.UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    scenario_instance_id = Column(postgresql.UUID(as_uuid=True), ForeignKey('scenario_instances.id'), nullable=False)
+    
+    # 统计周期
+    analytics_date = Column(DateTime(timezone=True), nullable=False)     # 统计日期
+    period_type = Column(String(20), nullable=False)                     # daily, weekly, monthly
+    
+    # 执行统计
+    total_executions = Column(Integer, default=0, nullable=False)        # 总执行次数
+    successful_executions = Column(Integer, default=0, nullable=False)   # 成功次数
+    failed_executions = Column(Integer, default=0, nullable=False)       # 失败次数
+    
+    # 性能统计
+    avg_execution_time = Column(Float, default=0.0, nullable=False)      # 平均执行时间
+    min_execution_time = Column(Float)                                   # 最短执行时间
+    max_execution_time = Column(Float)                                   # 最长执行时间
+    
+    # 用户统计
+    unique_users = Column(Integer, default=0, nullable=False)            # 唯一用户数
+    user_distribution = Column(postgresql.JSONB)                         # 用户分布统计
+    
+    # 时间分布
+    hourly_distribution = Column(postgresql.JSONB)                       # 小时分布
+    daily_trend = Column(postgresql.JSONB)                              # 日趋势
+    
+    # 业务指标
+    business_metrics = Column(postgresql.JSONB)                         # 业务指标
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("period_type IN ('daily', 'weekly', 'monthly', 'quarterly', 'yearly')", name='chk_period_type'),
+        CheckConstraint("total_executions >= 0", name='chk_total_executions'),
+        CheckConstraint("successful_executions >= 0", name='chk_successful_executions'),
+        CheckConstraint("failed_executions >= 0", name='chk_failed_executions'),
+        CheckConstraint("successful_executions + failed_executions <= total_executions", name='chk_execution_sum'),
+        CheckConstraint("avg_execution_time >= 0", name='chk_avg_execution_time'),
+        CheckConstraint("unique_users >= 0", name='chk_unique_users'),
+    )
+    
+    # 关系
+    scenario_instance = relationship("ScenarioInstanceModel") 
