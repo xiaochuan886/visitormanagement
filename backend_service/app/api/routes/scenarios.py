@@ -1,16 +1,39 @@
 """
 场景管理 API 路由
+严格遵循 Clean Architecture 和 API 开发规范
 """
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# 基础设施依赖
 from ...infrastructure.database.connection import get_db_session
-from ...api.dependencies.auth import get_current_user
-from ...api.dependencies.tenant import get_tenant_id
+
+# API依赖项
+from ..dependencies.auth import get_current_user
+from ..dependencies.tenant import get_current_tenant
+from ..dependencies.permissions import (
+    require_template_view, require_template_create, require_template_edit, require_template_delete,
+    require_instance_view, require_instance_create, require_instance_edit, require_instance_delete,
+    require_execution_view, require_execution_create, require_execution_manage,
+    require_routing_view, require_routing_create, require_routing_edit,
+    require_analytics_view, require_system_admin
+)
+from ..dependencies.services import (
+    get_scenario_template_service, get_scenario_instance_service,
+    get_scenario_routing_service, get_scenario_execution_service
+)
+
+# API响应模型
+from ..models.base_response import (
+    DataResponse, PaginatedResponse, OperationResponse, 
+    BatchOperationResponse, ErrorResponse, StatusCodes, ErrorCodes
+)
+
+# DTO模型
 from ...application.dto.scenario_dto import (
     # 场景模板 DTOs
     ScenarioTemplateCreateDTO, ScenarioTemplateUpdateDTO, ScenarioTemplateResponseDTO,
@@ -18,25 +41,21 @@ from ...application.dto.scenario_dto import (
     
     # 场景实例 DTOs
     ScenarioInstanceCreateDTO, ScenarioInstanceUpdateDTO, ScenarioInstanceResponseDTO,
-    ScenarioInstanceQueryDTO, ScenarioInstanceStatus, ScenarioInstanceCloneDTO,
-    ScenarioInstanceBatchUpdateDTO, ScenarioInstanceBatchActivateDTO,
+    ScenarioInstanceQueryDTO, ScenarioInstanceStatus,
     
     # 场景执行 DTOs
-    ScenarioExecutionCreateDTO, ScenarioExecutionUpdateDTO, ScenarioExecutionResponseDTO,
-    ScenarioExecutionQueryDTO, ScenarioExecutionStatus, ScenarioExecutionType,
+    ScenarioExecutionCreateDTO, ScenarioExecutionResponseDTO, ScenarioExecutionQueryDTO,
     
-    # 场景路由 DTOs
-    ScenarioRoutingRuleCreateDTO, ScenarioRoutingRuleUpdateDTO, ScenarioRoutingRuleResponseDTO,
-    
-    # 分析 DTOs
-    ScenarioAnalyticsResponseDTO,
-    
-    # 导入导出 DTOs
-    ScenarioTemplateExportDTO, ScenarioTemplateImportDTO
+    # 路由规则 DTOs
+    ScenarioRoutingRuleCreateDTO, ScenarioRoutingRuleResponseDTO
 )
+
+# 应用服务
 from ...application.services.scenario_service import ScenarioTemplateService, ScenarioInstanceService
 from ...application.services.scenario_routing_service import ScenarioRoutingService
 from ...application.services.scenario_execution_service import ScenarioExecutionService
+
+# 异常处理
 from ...domain.exceptions.config_exceptions import (
     ConfigurationNotFoundError, ConfigurationValidationError, ConfigurationConflictError
 )
@@ -46,693 +65,683 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/scenarios", tags=["场景管理"])
 
 
+# ================== 错误处理器 ==================
+
+def handle_service_exceptions(func):
+    """服务异常处理装饰器"""
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except ConfigurationNotFoundError as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+                headers={"X-Error-Code": ErrorCodes.RESOURCE_NOT_FOUND}
+            )
+        except ConfigurationValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
+                headers={"X-Error-Code": ErrorCodes.VALIDATION_ERROR}
+            )
+        except ConfigurationConflictError as e:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e),
+                headers={"X-Error-Code": ErrorCodes.RESOURCE_CONFLICT}
+            )
+        except Exception as e:
+            logger.error(f"API处理异常: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="内部服务器错误",
+                headers={"X-Error-Code": "INTERNAL_SERVER_ERROR"}
+            )
+    return wrapper
+
+
 # ================== 场景模板 API ==================
 
-@router.post("/templates", response_model=ScenarioTemplateResponseDTO, status_code=201)
+@router.post(
+    "/templates",
+    response_model=DataResponse[ScenarioTemplateResponseDTO],
+    status_code=status.HTTP_201_CREATED,
+    summary="创建场景模板",
+    description="创建新的场景模板，需要模板创建权限"
+)
+@handle_service_exceptions
 async def create_scenario_template(
     template_data: ScenarioTemplateCreateDTO,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """创建场景模板"""
-    try:
-        service = ScenarioTemplateService(db)
-        result = await service.create_template(
-            template_data, 
-            current_user["user_id"],
-            tenant_id
-        )
-        return result
-        
-    except ConfigurationConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except ConfigurationValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logger.error(f"创建场景模板失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    template_service: ScenarioTemplateService = Depends(get_scenario_template_service),
+    _: Dict[str, Any] = Depends(require_template_create)
+) -> DataResponse[ScenarioTemplateResponseDTO]:
+    """
+    创建场景模板
+    
+    - **权限要求**: scenario:template:create
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    result = await template_service.create_template(template_data, tenant_id)
+    
+    return DataResponse(
+        data=result,
+        message="场景模板创建成功"
+    )
 
 
-@router.get("/templates", response_model=Dict[str, Any])
+@router.get(
+    "/templates",
+    response_model=PaginatedResponse[ScenarioTemplateResponseDTO],
+    summary="获取场景模板列表",
+    description="分页获取场景模板列表，支持筛选和搜索"
+)
+@handle_service_exceptions
 async def list_scenario_templates(
-    template_category: Optional[ScenarioTemplateCategory] = None,
-    is_builtin: Optional[bool] = None,
-    is_template_active: Optional[bool] = None,
-    search: Optional[str] = None,
-    template_tags: Optional[List[str]] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """列出场景模板"""
-    try:
-        query = ScenarioTemplateQueryDTO(
-            template_category=template_category,
-            is_builtin=is_builtin,
-            is_template_active=is_template_active,
-            search=search,
-            template_tags=template_tags
-        )
-        
-        service = ScenarioTemplateService(db)
-        templates, total = await service.list_templates(query, tenant_id, skip, limit)
-        
-        return {
-            "items": templates,
-            "total": total,
-            "skip": skip,
-            "limit": limit,
-            "has_more": skip + limit < total
-        }
-        
-    except Exception as e:
-        logger.error(f"列出场景模板失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    template_category: Optional[ScenarioTemplateCategory] = Query(None, description="模板分类"),
+    is_builtin: Optional[bool] = Query(None, description="是否为内置模板"),
+    is_template_active: Optional[bool] = Query(None, description="是否激活"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
+    template_tags: Optional[List[str]] = Query(None, description="模板标签"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    tenant_id: str = Depends(get_current_tenant),
+    template_service: ScenarioTemplateService = Depends(get_scenario_template_service),
+    _: Dict[str, Any] = Depends(require_template_view)
+) -> PaginatedResponse[ScenarioTemplateResponseDTO]:
+    """
+    获取场景模板列表
+    
+    - **权限要求**: scenario:template:view
+    - **支持分页**: 是
+    - **支持筛选**: 是
+    """
+    query_dto = ScenarioTemplateQueryDTO(
+        template_category=template_category,
+        is_builtin=is_builtin,
+        is_template_active=is_template_active,
+        search=search,
+        template_tags=template_tags
+    )
+    
+    skip = (page - 1) * page_size
+    templates, total = await template_service.list_templates(
+        query_dto, tenant_id, skip, page_size
+    )
+    
+    return PaginatedResponse.create(
+        data=templates,
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="获取场景模板列表成功"
+    )
 
 
-@router.get("/templates/{template_id}", response_model=ScenarioTemplateResponseDTO)
+@router.get(
+    "/templates/{template_id}",
+    response_model=DataResponse[ScenarioTemplateResponseDTO],
+    summary="获取场景模板详情",
+    description="根据ID获取场景模板的详细信息"
+)
+@handle_service_exceptions
 async def get_scenario_template(
     template_id: UUID,
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """获取场景模板详情"""
-    try:
-        service = ScenarioTemplateService(db)
-        return await service.get_template(template_id, tenant_id)
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"获取场景模板失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    template_service: ScenarioTemplateService = Depends(get_scenario_template_service),
+    _: Dict[str, Any] = Depends(require_template_view)
+) -> DataResponse[ScenarioTemplateResponseDTO]:
+    """
+    获取场景模板详情
+    
+    - **权限要求**: scenario:template:view
+    - **租户隔离**: 是
+    """
+    template = await template_service.get_template(template_id, tenant_id)
+    
+    return DataResponse(
+        data=template,
+        message="获取场景模板详情成功"
+    )
 
 
-@router.put("/templates/{template_id}", response_model=ScenarioTemplateResponseDTO)
+@router.put(
+    "/templates/{template_id}",
+    response_model=DataResponse[ScenarioTemplateResponseDTO],
+    summary="更新场景模板",
+    description="更新指定的场景模板信息"
+)
+@handle_service_exceptions
 async def update_scenario_template(
     template_id: UUID,
     update_data: ScenarioTemplateUpdateDTO,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """更新场景模板"""
-    try:
-        service = ScenarioTemplateService(db)
-        return await service.update_template(
-            template_id,
-            update_data,
-            current_user["user_id"],
-            tenant_id
-        )
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConfigurationValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logger.error(f"更新场景模板失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    template_service: ScenarioTemplateService = Depends(get_scenario_template_service),
+    _: Dict[str, Any] = Depends(require_template_edit)
+) -> DataResponse[ScenarioTemplateResponseDTO]:
+    """
+    更新场景模板
+    
+    - **权限要求**: scenario:template:edit
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    template = await template_service.update_template(template_id, update_data, tenant_id)
+    
+    return DataResponse(
+        data=template,
+        message="场景模板更新成功"
+    )
 
 
-@router.delete("/templates/{template_id}")
+@router.delete(
+    "/templates/{template_id}",
+    response_model=OperationResponse,
+    summary="删除场景模板",
+    description="删除指定的场景模板（软删除）"
+)
+@handle_service_exceptions
 async def delete_scenario_template(
     template_id: UUID,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """删除场景模板"""
-    try:
-        service = ScenarioTemplateService(db)
-        await service.delete_template(template_id, current_user["user_id"], tenant_id)
-        return {"message": "场景模板删除成功"}
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConfigurationValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logger.error(f"删除场景模板失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    template_service: ScenarioTemplateService = Depends(get_scenario_template_service),
+    _: Dict[str, Any] = Depends(require_template_delete)
+) -> OperationResponse:
+    """
+    删除场景模板
+    
+    - **权限要求**: scenario:template:delete
+    - **删除方式**: 软删除
+    - **操作审计**: 是
+    """
+    await template_service.delete_template(template_id, tenant_id)
+    
+    return OperationResponse(
+        message="场景模板删除成功",
+        affected_count=1
+    )
 
 
 # ================== 场景实例 API ==================
 
-@router.post("/instances", response_model=ScenarioInstanceResponseDTO, status_code=201)
+@router.post(
+    "/instances",
+    response_model=DataResponse[ScenarioInstanceResponseDTO],
+    status_code=status.HTTP_201_CREATED,
+    summary="创建场景实例",
+    description="基于模板创建场景实例"
+)
+@handle_service_exceptions
 async def create_scenario_instance(
     instance_data: ScenarioInstanceCreateDTO,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """创建场景实例"""
-    try:
-        service = ScenarioInstanceService(db)
-        result = await service.create_instance(
-            instance_data,
-            current_user["user_id"],
-            tenant_id
-        )
-        return result
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConfigurationConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except ConfigurationValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logger.error(f"创建场景实例失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_create)
+) -> DataResponse[ScenarioInstanceResponseDTO]:
+    """
+    创建场景实例
+    
+    - **权限要求**: scenario:instance:create
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    result = await instance_service.create_instance(instance_data, tenant_id)
+    
+    return DataResponse(
+        data=result,
+        message="场景实例创建成功"
+    )
 
 
-@router.get("/instances", response_model=Dict[str, Any])
+@router.get(
+    "/instances",
+    response_model=PaginatedResponse[ScenarioInstanceResponseDTO],
+    summary="获取场景实例列表",
+    description="分页获取场景实例列表"
+)
+@handle_service_exceptions
 async def list_scenario_instances(
-    template_id: Optional[UUID] = None,
-    instance_status: Optional[ScenarioInstanceStatus] = None,
-    auto_routing_enabled: Optional[bool] = None,
-    applicable_sites: Optional[List[str]] = Query(None),
-    applicable_departments: Optional[List[str]] = Query(None),
-    applicable_roles: Optional[List[str]] = Query(None),
-    search: Optional[str] = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """列出场景实例"""
-    try:
-        query = ScenarioInstanceQueryDTO(
-            template_id=template_id,
-            instance_status=instance_status,
-            auto_routing_enabled=auto_routing_enabled,
-            applicable_sites=applicable_sites,
-            applicable_departments=applicable_departments,
-            applicable_roles=applicable_roles,
-            search=search
-        )
-        
-        service = ScenarioInstanceService(db)
-        instances, total = await service.list_instances(query, tenant_id, skip, limit)
-        
-        return {
-            "items": instances,
-            "total": total,
-            "skip": skip,
-            "limit": limit,
-            "has_more": skip + limit < total
-        }
-        
-    except Exception as e:
-        logger.error(f"列出场景实例失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    template_id: Optional[UUID] = Query(None, description="模板ID"),
+    instance_status: Optional[ScenarioInstanceStatus] = Query(None, description="实例状态"),
+    auto_routing_enabled: Optional[bool] = Query(None, description="是否启用自动路由"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_view)
+) -> PaginatedResponse[ScenarioInstanceResponseDTO]:
+    """
+    获取场景实例列表
+    
+    - **权限要求**: scenario:instance:view
+    - **支持分页**: 是
+    - **支持筛选**: 是
+    """
+    query_dto = ScenarioInstanceQueryDTO(
+        template_id=template_id,
+        instance_status=instance_status,
+        auto_routing_enabled=auto_routing_enabled,
+        search=search
+    )
+    
+    skip = (page - 1) * page_size
+    instances, total = await instance_service.list_instances(
+        query_dto, tenant_id, skip, page_size
+    )
+    
+    return PaginatedResponse.create(
+        data=instances,
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="获取场景实例列表成功"
+    )
 
 
-@router.get("/instances/{instance_id}", response_model=ScenarioInstanceResponseDTO)
+@router.get(
+    "/instances/{instance_id}",
+    response_model=DataResponse[ScenarioInstanceResponseDTO],
+    summary="获取场景实例详情",
+    description="根据ID获取场景实例的详细信息"
+)
+@handle_service_exceptions
 async def get_scenario_instance(
     instance_id: UUID,
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """获取场景实例详情"""
-    try:
-        service = ScenarioInstanceService(db)
-        return await service.get_instance(instance_id, tenant_id)
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"获取场景实例失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_view)
+) -> DataResponse[ScenarioInstanceResponseDTO]:
+    """
+    获取场景实例详情
+    
+    - **权限要求**: scenario:instance:view
+    - **租户隔离**: 是
+    """
+    instance = await instance_service.get_instance(instance_id, tenant_id)
+    
+    return DataResponse(
+        data=instance,
+        message="获取场景实例详情成功"
+    )
 
 
-@router.post("/instances/{instance_id}/clone", response_model=ScenarioInstanceResponseDTO)
-async def clone_scenario_instance(
+@router.put(
+    "/instances/{instance_id}",
+    response_model=DataResponse[ScenarioInstanceResponseDTO],
+    summary="更新场景实例",
+    description="更新指定的场景实例信息"
+)
+@handle_service_exceptions
+async def update_scenario_instance(
     instance_id: UUID,
-    clone_data: ScenarioInstanceCloneDTO,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """克隆场景实例"""
-    try:
-        # 这里需要实现克隆逻辑
-        # service = ScenarioInstanceService(db)
-        # return await service.clone_instance(clone_data, current_user["user_id"], tenant_id)
-        
-        raise HTTPException(status_code=501, detail="克隆功能暂未实现")
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"克隆场景实例失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    update_data: ScenarioInstanceUpdateDTO,
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_edit)
+) -> DataResponse[ScenarioInstanceResponseDTO]:
+    """
+    更新场景实例
+    
+    - **权限要求**: scenario:instance:edit
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    instance = await instance_service.update_instance(instance_id, update_data, tenant_id)
+    
+    return DataResponse(
+        data=instance,
+        message="场景实例更新成功"
+    )
+
+
+@router.delete(
+    "/instances/{instance_id}",
+    response_model=OperationResponse,
+    summary="删除场景实例",
+    description="删除指定的场景实例（软删除）"
+)
+@handle_service_exceptions
+async def delete_scenario_instance(
+    instance_id: UUID,
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_delete)
+) -> OperationResponse:
+    """
+    删除场景实例
+    
+    - **权限要求**: scenario:instance:delete
+    - **删除方式**: 软删除
+    - **操作审计**: 是
+    """
+    await instance_service.delete_instance(instance_id, tenant_id)
+    
+    return OperationResponse(
+        message="场景实例删除成功",
+        affected_count=1
+    )
+
+
+@router.post(
+    "/instances/{instance_id}/activate",
+    response_model=DataResponse[ScenarioInstanceResponseDTO],
+    summary="激活场景实例",
+    description="激活指定的场景实例"
+)
+@handle_service_exceptions
+async def activate_scenario_instance(
+    instance_id: UUID,
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_edit)
+) -> DataResponse[ScenarioInstanceResponseDTO]:
+    """
+    激活场景实例
+    
+    - **权限要求**: scenario:instance:edit
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    instance = await instance_service.activate_instance(instance_id, tenant_id)
+    
+    return DataResponse(
+        data=instance,
+        message="场景实例激活成功"
+    )
+
+
+@router.post(
+    "/instances/{instance_id}/deactivate",
+    response_model=DataResponse[ScenarioInstanceResponseDTO],
+    summary="停用场景实例",
+    description="停用指定的场景实例"
+)
+@handle_service_exceptions
+async def deactivate_scenario_instance(
+    instance_id: UUID,
+    tenant_id: str = Depends(get_current_tenant),
+    instance_service: ScenarioInstanceService = Depends(get_scenario_instance_service),
+    _: Dict[str, Any] = Depends(require_instance_edit)
+) -> DataResponse[ScenarioInstanceResponseDTO]:
+    """
+    停用场景实例
+    
+    - **权限要求**: scenario:instance:edit
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    instance = await instance_service.deactivate_instance(instance_id, tenant_id)
+    
+    return DataResponse(
+        data=instance,
+        message="场景实例停用成功"
+    )
 
 
 # ================== 场景执行 API ==================
 
-@router.post("/executions", response_model=ScenarioExecutionResponseDTO, status_code=201)
+@router.post(
+    "/executions",
+    response_model=DataResponse[ScenarioExecutionResponseDTO],
+    status_code=status.HTTP_201_CREATED,
+    summary="创建场景执行",
+    description="创建新的场景执行任务"
+)
+@handle_service_exceptions
 async def create_scenario_execution(
     execution_data: ScenarioExecutionCreateDTO,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """创建场景执行"""
-    try:
-        service = ScenarioExecutionService(db)
-        result = await service.create_execution(
-            execution_data,
-            current_user["user_id"],
-            tenant_id
-        )
-        return result
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConfigurationValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logger.error(f"创建场景执行失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    execution_service: ScenarioExecutionService = Depends(get_scenario_execution_service),
+    _: Dict[str, Any] = Depends(require_execution_create)
+) -> DataResponse[ScenarioExecutionResponseDTO]:
+    """
+    创建场景执行
+    
+    - **权限要求**: scenario:execution:create
+    - **处理方式**: 异步处理
+    - **租户隔离**: 是
+    """
+    execution = await execution_service.create_execution(execution_data, tenant_id)
+    
+    # 添加后台任务执行场景
+    background_tasks.add_task(
+        execution_service.execute_scenario_async,
+        execution.id,
+        tenant_id
+    )
+    
+    return DataResponse(
+        data=execution,
+        message="场景执行任务创建成功"
+    )
 
 
-@router.get("/executions", response_model=Dict[str, Any])
+@router.get(
+    "/executions",
+    response_model=PaginatedResponse[ScenarioExecutionResponseDTO],
+    summary="获取场景执行列表",
+    description="分页获取场景执行记录"
+)
+@handle_service_exceptions
 async def list_scenario_executions(
-    scenario_instance_id: Optional[UUID] = None,
-    execution_status: Optional[ScenarioExecutionStatus] = None,
-    execution_type: Optional[ScenarioExecutionType] = None,
-    target_entity_type: Optional[str] = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """列出场景执行"""
-    try:
-        query = ScenarioExecutionQueryDTO(
-            scenario_instance_id=scenario_instance_id,
-            execution_status=execution_status,
-            execution_type=execution_type,
-            target_entity_type=target_entity_type
-        )
-        
-        service = ScenarioExecutionService(db)
-        executions, total = await service.list_executions(query, tenant_id, skip, limit)
-        
-        return {
-            "items": executions,
-            "total": total,
-            "skip": skip,
-            "limit": limit,
-            "has_more": skip + limit < total
-        }
-        
-    except Exception as e:
-        logger.error(f"列出场景执行失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    scenario_instance_id: Optional[UUID] = Query(None, description="场景实例ID"),
+    execution_status: Optional[str] = Query(None, description="执行状态"),
+    execution_type: Optional[str] = Query(None, description="执行类型"),
+    target_entity_type: Optional[str] = Query(None, description="目标实体类型"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    tenant_id: str = Depends(get_current_tenant),
+    execution_service: ScenarioExecutionService = Depends(get_scenario_execution_service),
+    _: Dict[str, Any] = Depends(require_execution_view)
+) -> PaginatedResponse[ScenarioExecutionResponseDTO]:
+    """
+    获取场景执行列表
+    
+    - **权限要求**: scenario:execution:view
+    - **支持分页**: 是
+    - **支持筛选**: 是
+    """
+    query_dto = ScenarioExecutionQueryDTO(
+        scenario_instance_id=scenario_instance_id,
+        execution_status=execution_status,
+        execution_type=execution_type,
+        target_entity_type=target_entity_type
+    )
+    
+    skip = (page - 1) * page_size
+    executions, total = await execution_service.list_executions(
+        query_dto, tenant_id, skip, page_size
+    )
+    
+    return PaginatedResponse.create(
+        data=executions,
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="获取场景执行列表成功"
+    )
 
 
-@router.get("/executions/{execution_id}", response_model=ScenarioExecutionResponseDTO)
+@router.get(
+    "/executions/{execution_id}",
+    response_model=DataResponse[ScenarioExecutionResponseDTO],
+    summary="获取场景执行详情",
+    description="根据ID获取场景执行的详细信息"
+)
+@handle_service_exceptions
 async def get_scenario_execution(
     execution_id: UUID,
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """获取场景执行详情"""
-    try:
-        service = ScenarioExecutionService(db)
-        return await service.get_execution(execution_id, tenant_id)
-        
-    except ConfigurationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"获取场景执行失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    execution_service: ScenarioExecutionService = Depends(get_scenario_execution_service),
+    _: Dict[str, Any] = Depends(require_execution_view)
+) -> DataResponse[ScenarioExecutionResponseDTO]:
+    """
+    获取场景执行详情
+    
+    - **权限要求**: scenario:execution:view
+    - **租户隔离**: 是
+    """
+    execution = await execution_service.get_execution(execution_id, tenant_id)
+    
+    return DataResponse(
+        data=execution,
+        message="获取场景执行详情成功"
+    )
 
 
-# ================== 智能路由 API ==================
+@router.post(
+    "/executions/{execution_id}/cancel",
+    response_model=DataResponse[ScenarioExecutionResponseDTO],
+    summary="取消场景执行",
+    description="取消正在执行的场景任务"
+)
+@handle_service_exceptions
+async def cancel_scenario_execution(
+    execution_id: UUID,
+    tenant_id: str = Depends(get_current_tenant),
+    execution_service: ScenarioExecutionService = Depends(get_scenario_execution_service),
+    _: Dict[str, Any] = Depends(require_execution_manage)
+) -> DataResponse[ScenarioExecutionResponseDTO]:
+    """
+    取消场景执行
+    
+    - **权限要求**: scenario:execution:manage
+    - **租户隔离**: 是
+    """
+    execution = await execution_service.cancel_execution(execution_id, tenant_id)
+    
+    return DataResponse(
+        data=execution,
+        message="场景执行取消成功"
+    )
 
-@router.post("/route", response_model=Dict[str, Any])
+
+# ================== 场景路由 API ==================
+
+@router.post(
+    "/route",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="路由场景",
+    description="根据条件自动路由到匹配的场景"
+)
+@handle_service_exceptions
 async def route_scenario(
     context: Dict[str, Any],
     entity_type: str = Query(..., description="实体类型"),
     entity_id: str = Query(..., description="实体ID"),
-    auto_execute: bool = Query(False, description="是否自动执行匹配的场景"),
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """智能场景路由"""
-    try:
-        routing_service = ScenarioRoutingService(db)
-        
-        # 执行场景路由
-        matched_scenarios = await routing_service.route_scenario(
-            context=context,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            user_id=current_user["user_id"],
-            tenant_id=tenant_id
-        )
-        
-        result = {
-            "matched_scenarios": matched_scenarios,
-            "count": len(matched_scenarios),
-            "auto_executed": False,
-            "executions": []
-        }
-        
-        # 如果启用自动执行
-        if auto_execute and matched_scenarios:
-            executions = await routing_service.execute_matched_scenarios(
-                scenarios=matched_scenarios,
-                context=context,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                user_id=current_user["user_id"],
-                tenant_id=tenant_id
-            )
-            
-            result["auto_executed"] = True
-            result["executions"] = executions
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"智能路由失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    auto_execute: bool = Query(False, description="是否自动执行"),
+    tenant_id: str = Depends(get_current_tenant),
+    routing_service: ScenarioRoutingService = Depends(get_scenario_routing_service),
+    _: Dict[str, Any] = Depends(require_routing_view)
+) -> DataResponse[Dict[str, Any]]:
+    """
+    路由场景
+    
+    - **权限要求**: scenario:routing:view
+    - **租户隔离**: 是
+    - **支持自动执行**: 是
+    """
+    result = await routing_service.route_scenario(
+        context, entity_type, entity_id, auto_execute, tenant_id
+    )
+    
+    return DataResponse(
+        data=result,
+        message="场景路由成功"
+    )
 
 
-@router.post("/routing-rules", response_model=ScenarioRoutingRuleResponseDTO, status_code=201)
+@router.post(
+    "/routing-rules",
+    response_model=DataResponse[ScenarioRoutingRuleResponseDTO],
+    status_code=status.HTTP_201_CREATED,
+    summary="创建路由规则",
+    description="创建新的场景路由规则"
+)
+@handle_service_exceptions
 async def create_routing_rule(
     rule_data: ScenarioRoutingRuleCreateDTO,
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """创建路由规则"""
-    try:
-        service = ScenarioRoutingService(db)
-        result = await service.create_routing_rule(
-            rule_data,
-            current_user["user_id"],
-            tenant_id
-        )
-        return result
-        
-    except ConfigurationValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logger.error(f"创建路由规则失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    routing_service: ScenarioRoutingService = Depends(get_scenario_routing_service),
+    _: Dict[str, Any] = Depends(require_routing_create)
+) -> DataResponse[ScenarioRoutingRuleResponseDTO]:
+    """
+    创建路由规则
+    
+    - **权限要求**: scenario:routing:create
+    - **租户隔离**: 是
+    - **操作审计**: 是
+    """
+    rule = await routing_service.create_routing_rule(rule_data, tenant_id)
+    
+    return DataResponse(
+        data=rule,
+        message="路由规则创建成功"
+    )
 
 
-# ================== 预制场景模板初始化 API ==================
+# ================== 系统管理 API ==================
 
-@router.post("/templates/initialize-builtin")
+@router.post(
+    "/templates/initialize-builtin",
+    response_model=BatchOperationResponse,
+    summary="初始化内置模板",
+    description="初始化系统预制的场景模板"
+)
+@handle_service_exceptions
 async def initialize_builtin_templates(
-    current_user: dict = Depends(get_current_user),
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """初始化四大核心场景模板"""
-    try:
-        service = ScenarioTemplateService(db)
-        
-        # 四大核心场景模板定义
-        builtin_templates = [
-            {
-                "template_name": "访客自主申请",
-                "template_code": "visitor_self_register",
-                "template_category": ScenarioTemplateCategory.VISITOR_MANAGEMENT,
-                "template_description": "访客通过系统自主申请访问",
-                "is_builtin": True,
-                "scenario_features": {
-                    "registration_type": "self_service",
-                    "approval_required": True,
-                    "auto_approval_rules": ["company_whitelist", "frequent_visitor"],
-                    "supported_channels": ["web", "mobile", "wechat"]
-                },
-                "default_configurations": {
-                    "form_config": {
-                        "form_schema": {
-                            "type": "object",
-                            "properties": {
-                                "name": {"type": "string", "title": "访客姓名"},
-                                "phone": {"type": "string", "title": "手机号码"},
-                                "company": {"type": "string", "title": "公司名称"},
-                                "purpose": {"type": "string", "title": "访问目的"},
-                                "expected_date": {"type": "string", "format": "date", "title": "预计访问日期"},
-                                "expected_time": {"type": "string", "format": "time", "title": "预计访问时间"}
-                            },
-                            "required": ["name", "phone", "company", "purpose", "expected_date"]
-                        },
-                        "validation_schema": {
-                            "required_fields": ["name", "phone", "company", "purpose"],
-                            "field_rules": {
-                                "phone": {"type": "string", "pattern": "^1[3-9]\\d{9}$"},
-                                "name": {"type": "string", "min_length": 2, "max_length": 50}
-                            }
-                        }
-                    },
-                    "workflow_config": {
-                        "workflow_steps": [
-                            {"step_type": "validate_form", "config": {"critical": True}},
-                            {"step_type": "check_blacklist", "config": {"critical": True}},
-                            {"step_type": "auto_approve_check", "config": {"critical": False}},
-                            {"step_type": "manual_review", "config": {"critical": True, "condition": "!auto_approved"}},
-                            {"step_type": "notify_visitor", "config": {"critical": False}},
-                            {"step_type": "generate_qr_code", "config": {"critical": False}}
-                        ]
-                    },
-                    "business_rules": [
-                        {
-                            "rule_name": "公司白名单自动审批",
-                            "rule_conditions": {
-                                "conditions": [
-                                    {"field": "visitor.company_name", "operator": "in", "value": ["阿里巴巴", "腾讯", "百度"]}
-                                ]
-                            },
-                            "rule_actions": [
-                                {"action_type": "update_status", "params": {"status": "auto_approved"}}
-                            ],
-                            "critical": False
-                        }
-                    ]
-                },
-                "supported_roles": ["visitor", "employee", "security"],
-                "trigger_conditions": {
-                    "conditions": [
-                        {"field": "registration_type", "operator": "eq", "value": "self_service"},
-                        {"field": "entity_type", "operator": "eq", "value": "visitor"}
-                    ]
-                },
-                "template_tags": ["访客管理", "自主申请", "基础场景"]
-            },
-            {
-                "template_name": "员工邀约已知访客",
-                "template_code": "employee_invite_known",
-                "template_category": ScenarioTemplateCategory.VISITOR_MANAGEMENT,
-                "template_description": "员工邀约已知访客快速通道",
-                "is_builtin": True,
-                "scenario_features": {
-                    "registration_type": "employee_invite",
-                    "visitor_type": "known",
-                    "approval_required": False,
-                    "fast_track": True
-                },
-                "default_configurations": {
-                    "form_config": {
-                        "form_schema": {
-                            "type": "object", 
-                            "properties": {
-                                "visitor_id": {"type": "string", "title": "访客ID"},
-                                "visit_date": {"type": "string", "format": "date", "title": "访问日期"},
-                                "visit_time": {"type": "string", "format": "time", "title": "访问时间"},
-                                "purpose": {"type": "string", "title": "访问目的"}
-                            },
-                            "required": ["visitor_id", "visit_date", "purpose"]
-                        }
-                    },
-                    "workflow_config": {
-                        "workflow_steps": [
-                            {"step_type": "validate_visitor", "config": {"critical": True}},
-                            {"step_type": "check_employee_permission", "config": {"critical": True}},
-                            {"step_type": "auto_approve", "config": {"critical": False}},
-                            {"step_type": "notify_security", "config": {"critical": False}}
-                        ]
-                    }
-                },
-                "supported_roles": ["employee", "security"],
-                "trigger_conditions": {
-                    "conditions": [
-                        {"field": "registration_type", "operator": "eq", "value": "employee_invite"},
-                        {"field": "visitor_type", "operator": "eq", "value": "known"}
-                    ]
-                },
-                "template_tags": ["员工邀约", "已知访客", "快速通道"]
-            },
-            {
-                "template_name": "员工邀约未知访客",
-                "template_code": "employee_invite_unknown",
-                "template_category": ScenarioTemplateCategory.VISITOR_MANAGEMENT,
-                "template_description": "员工邀约未知访客，需要填写详细信息",
-                "is_builtin": True,
-                "scenario_features": {
-                    "registration_type": "employee_invite",
-                    "visitor_type": "unknown",
-                    "approval_required": True,
-                    "detailed_form": True
-                },
-                "default_configurations": {
-                    "form_config": {
-                        "form_schema": {
-                            "type": "object",
-                            "properties": {
-                                "name": {"type": "string", "title": "访客姓名"},
-                                "phone": {"type": "string", "title": "手机号码"},
-                                "company": {"type": "string", "title": "公司名称"},
-                                "id_number": {"type": "string", "title": "身份证号"},
-                                "purpose": {"type": "string", "title": "访问目的"},
-                                "visit_date": {"type": "string", "format": "date", "title": "访问日期"},
-                                "visit_time": {"type": "string", "format": "time", "title": "访问时间"},
-                                "meeting_room": {"type": "string", "title": "会议室"}
-                            },
-                            "required": ["name", "phone", "company", "purpose", "visit_date"]
-                        }
-                    },
-                    "workflow_config": {
-                        "workflow_steps": [
-                            {"step_type": "validate_form", "config": {"critical": True}},
-                            {"step_type": "check_employee_permission", "config": {"critical": True}},
-                            {"step_type": "manager_approval", "config": {"critical": True}},
-                            {"step_type": "security_review", "config": {"critical": False}},
-                            {"step_type": "notify_visitor", "config": {"critical": False}}
-                        ]
-                    }
-                },
-                "supported_roles": ["employee", "manager", "security"],
-                "trigger_conditions": {
-                    "conditions": [
-                        {"field": "registration_type", "operator": "eq", "value": "employee_invite"},
-                        {"field": "visitor_type", "operator": "eq", "value": "unknown"}
-                    ]
-                },
-                "template_tags": ["员工邀约", "未知访客", "详细审核"]
-            },
-            {
-                "template_name": "访客批量邀约",
-                "template_code": "visitor_batch_invite",
-                "template_category": ScenarioTemplateCategory.VISITOR_MANAGEMENT,
-                "template_description": "批量邀约访客，支持Excel导入",
-                "is_builtin": True,
-                "scenario_features": {
-                    "registration_type": "batch_invite",
-                    "batch_processing": True,
-                    "excel_import": True,
-                    "approval_required": True
-                },
-                "default_configurations": {
-                    "form_config": {
-                        "form_schema": {
-                            "type": "object",
-                            "properties": {
-                                "event_name": {"type": "string", "title": "活动名称"},
-                                "event_date": {"type": "string", "format": "date", "title": "活动日期"},
-                                "event_time": {"type": "string", "format": "time", "title": "活动时间"},
-                                "location": {"type": "string", "title": "活动地点"},
-                                "visitor_list": {"type": "array", "title": "访客列表"},
-                                "batch_file": {"type": "string", "title": "批量导入文件"}
-                            },
-                            "required": ["event_name", "event_date", "location"]
-                        }
-                    },
-                    "workflow_config": {
-                        "workflow_steps": [
-                            {"step_type": "validate_batch_data", "config": {"critical": True}},
-                            {"step_type": "process_excel", "config": {"critical": True}},
-                            {"step_type": "batch_validation", "config": {"critical": True}},
-                            {"step_type": "manager_approval", "config": {"critical": True}},
-                            {"step_type": "batch_notification", "config": {"critical": False}}
-                        ]
-                    }
-                },
-                "supported_roles": ["employee", "manager", "admin"],
-                "trigger_conditions": {
-                    "conditions": [
-                        {"field": "registration_type", "operator": "eq", "value": "batch_invite"},
-                        {"field": "entity_type", "operator": "eq", "value": "event"}
-                    ]
-                },
-                "template_tags": ["批量邀约", "Excel导入", "活动管理"]
-            }
-        ]
-        
-        created_templates = []
-        
-        for template_config in builtin_templates:
-            try:
-                # 检查是否已存在
-                existing = await service._get_template_by_code(
-                    template_config["template_code"], tenant_id
-                )
-                
-                if existing:
-                    logger.info(f"内置模板已存在，跳过: {template_config['template_code']}")
-                    continue
-                
-                # 创建模板
-                template_dto = ScenarioTemplateCreateDTO(**template_config)
-                template = await service.create_template(
-                    template_dto,
-                    current_user["user_id"],
-                    tenant_id
-                )
-                created_templates.append(template)
-                
-                logger.info(f"创建内置模板成功: {template.template_name}")
-                
-            except Exception as e:
-                logger.error(f"创建内置模板失败: {template_config['template_name']}, error: {str(e)}")
-                continue
-        
-        return {
-            "message": f"成功初始化 {len(created_templates)} 个内置场景模板",
-            "created_templates": created_templates
-        }
-        
-    except Exception as e:
-        logger.error(f"初始化内置模板失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误")
+    tenant_id: str = Depends(get_current_tenant),
+    template_service: ScenarioTemplateService = Depends(get_scenario_template_service),
+    _: Dict[str, Any] = Depends(require_system_admin)
+) -> BatchOperationResponse:
+    """
+    初始化内置模板
+    
+    - **权限要求**: scenario:system:admin
+    - **操作类型**: 批量操作
+    - **租户隔离**: 是
+    """
+    result = await template_service.initialize_builtin_templates(tenant_id)
+    
+    return BatchOperationResponse(
+        total_count=result.get("total", 0),
+        success_count=result.get("success", 0),
+        failed_count=result.get("failed", 0),
+        errors=result.get("errors", []),
+        message="内置模板初始化完成"
+    )
 
 
-# ================== 场景统计和分析 API ==================
-
-@router.get("/analytics/summary")
+@router.get(
+    "/analytics/summary",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="获取场景分析摘要",
+    description="获取场景执行的统计分析数据"
+)
+@handle_service_exceptions
 async def get_scenario_analytics_summary(
-    tenant_id: str = Depends(get_tenant_id),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """获取场景分析摘要"""
-    try:
-        # 这里可以实现场景使用统计和分析
-        # 暂时返回简单的统计信息
-        
-        return {
-            "total_templates": 0,
-            "total_instances": 0,
-            "total_executions": 0,
-            "success_rate": 0.0,
-            "avg_execution_time": 0.0,
-            "top_scenarios": [],
-            "recent_executions": []
-        }
-        
-    except Exception as e:
-        logger.error(f"获取场景分析摘要失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务器错误") 
+    period: str = Query("daily", description="统计周期"),
+    start_date: Optional[str] = Query(None, description="开始日期"),
+    end_date: Optional[str] = Query(None, description="结束日期"),
+    tenant_id: str = Depends(get_current_tenant),
+    execution_service: ScenarioExecutionService = Depends(get_scenario_execution_service),
+    _: Dict[str, Any] = Depends(require_analytics_view)
+) -> DataResponse[Dict[str, Any]]:
+    """
+    获取场景分析摘要
+    
+    - **权限要求**: scenario:analytics:view
+    - **租户隔离**: 是
+    - **支持时间范围**: 是
+    """
+    analytics = await execution_service.get_analytics_summary(
+        tenant_id, period, start_date, end_date
+    )
+    
+    return DataResponse(
+        data=analytics,
+        message="获取场景分析摘要成功"
+    ) 

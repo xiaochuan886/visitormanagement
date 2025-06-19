@@ -15,6 +15,7 @@ from .spatial_config import router as spatial_config_router
 from .business_rules import router as business_rules_router
 # 场景管理路由
 from .scenarios import router as scenarios_router
+from .scenario_templates import router as scenario_templates_router
 
 # 创建主API路由器
 api_router = APIRouter()
@@ -33,4 +34,5 @@ api_router.include_router(spatial_config_router, prefix="/config/spatial", tags=
 api_router.include_router(business_rules_router, prefix="/config/rules", tags=["业务规则"])
 
 # 场景管理API路由
-api_router.include_router(scenarios_router, prefix="/config/scenarios", tags=["场景管理"]) 
+api_router.include_router(scenarios_router, prefix="/config/scenarios", tags=["场景管理"])
+api_router.include_router(scenario_templates_router, prefix="/config/scenarios", tags=["场景模板"]) 

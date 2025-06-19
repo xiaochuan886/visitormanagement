@@ -321,6 +321,199 @@ class ScenarioTemplateService:
         )
         result = await self.db.execute(stmt)
         return result.scalar()
+    
+    async def initialize_builtin_templates(self, created_by: str, tenant_id: str) -> Dict[str, Any]:
+        """初始化内置模板"""
+        try:
+            builtin_templates = self._get_builtin_template_definitions()
+            total = len(builtin_templates)
+            success = 0
+            failed = 0
+            errors = []
+            
+            for template_def in builtin_templates:
+                try:
+                    # 检查是否已存在
+                    existing = await self._get_template_by_code(template_def["template_code"], tenant_id)
+                    if existing:
+                        continue  # 跳过已存在的模板
+                    
+                    # 创建模板
+                    template_dto = ScenarioTemplateCreateDTO(**template_def)
+                    await self.create_template(template_dto, created_by, tenant_id)
+                    success += 1
+                    
+                except Exception as e:
+                    failed += 1
+                    errors.append({
+                        "template_code": template_def.get("template_code", "unknown"),
+                        "error": str(e)
+                    })
+                    logger.error(f"创建内置模板失败: {template_def.get('template_code')}, 错误: {str(e)}")
+            
+            logger.info(f"内置模板初始化完成: 总计{total}, 成功{success}, 失败{failed}")
+            return {
+                "total": total,
+                "success": success,
+                "failed": failed,
+                "errors": errors
+            }
+            
+        except Exception as e:
+            logger.error(f"初始化内置模板失败: {str(e)}")
+            raise
+    
+    def _get_builtin_template_definitions(self) -> List[Dict[str, Any]]:
+        """获取内置模板定义"""
+        return [
+            {
+                "template_name": "标准访客登记",
+                "template_code": "visitor_checkin_standard",
+                "template_category": "visitor_management",
+                "template_description": "标准的访客登记流程，包含身份验证、信息录入、照片拍摄、访问卡发放等环节",
+                "is_builtin": True,
+                "scenario_features": {
+                    "form_steps": ["identity_verification", "information_input", "photo_capture", "card_issuance"],
+                    "required_fields": ["name", "phone", "company", "visit_purpose"],
+                    "optional_fields": ["email", "id_number", "vehicle_plate"],
+                    "validation_rules": {"phone": "regex", "email": "email_format"},
+                    "photo_required": True,
+                    "card_required": True
+                },
+                "default_configurations": {
+                    "max_duration": 480,
+                    "notification_enabled": True,
+                    "approval_required": False,
+                    "escort_required": False,
+                    "badge_type": "visitor",
+                    "access_areas": ["lobby", "meeting_rooms"],
+                    "auto_checkout": True
+                },
+                "supported_roles": ["receptionist", "security", "admin"],
+                "trigger_conditions": {
+                    "entity_type": "visitor",
+                    "action": "checkin",
+                    "conditions": [{"field": "visitor_type", "operator": "eq", "value": "standard"}]
+                },
+                "template_tags": ["访客", "登记", "标准", "前台"]
+            },
+            {
+                "template_name": "VIP访客登记",
+                "template_code": "visitor_checkin_vip",
+                "template_category": "visitor_management", 
+                "template_description": "VIP访客专用登记流程，简化步骤并提供专属服务",
+                "is_builtin": True,
+                "scenario_features": {
+                    "form_steps": ["identity_verification", "vip_service_selection"],
+                    "required_fields": ["name", "phone", "company"],
+                    "optional_fields": ["email", "special_requirements"],
+                    "validation_rules": {"phone": "regex"},
+                    "photo_required": False,
+                    "card_required": True
+                },
+                "default_configurations": {
+                    "max_duration": 720,
+                    "notification_enabled": True,
+                    "approval_required": False,
+                    "escort_required": True,
+                    "badge_type": "vip",
+                    "access_areas": ["lobby", "meeting_rooms", "executive_floor"],
+                    "auto_checkout": False,
+                    "priority_service": True
+                },
+                "supported_roles": ["receptionist", "vip_service", "admin"],
+                "trigger_conditions": {
+                    "entity_type": "visitor",
+                    "action": "checkin",
+                    "conditions": [{"field": "visitor_type", "operator": "eq", "value": "vip"}]
+                },
+                "template_tags": ["VIP", "访客", "专属", "高端"]
+            }
+        ]
+    
+    async def get_template_instances(
+        self, 
+        template_id: UUID, 
+        tenant_id: str, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """获取模板关联的实例"""
+        conditions = [
+            ScenarioInstanceModel.template_id == template_id,
+            ScenarioInstanceModel.tenant_id == tenant_id,
+            ScenarioInstanceModel.is_deleted == False
+        ]
+        
+        stmt = select(ScenarioInstanceModel).where(and_(*conditions)).offset(skip).limit(limit)
+        count_stmt = select(func.count(ScenarioInstanceModel.id)).where(and_(*conditions))
+        
+        result = await self.db.execute(stmt)
+        count_result = await self.db.execute(count_stmt)
+        
+        instances = result.scalars().all()
+        total = count_result.scalar()
+        
+        instance_data = []
+        for instance in instances:
+            instance_data.append({
+                "id": str(instance.id),
+                "instance_name": instance.instance_name,
+                "instance_code": instance.instance_code,
+                "instance_status": instance.instance_status,
+                "priority_level": instance.priority_level,
+                "created_at": instance.created_at.isoformat(),
+                "execution_count": instance.execution_count,
+                "success_count": instance.success_count
+            })
+        
+        return instance_data, total
+    
+    async def get_template_usage_stats(self, template_id: UUID, tenant_id: str) -> Dict[str, Any]:
+        """获取模板使用统计"""
+        template = await self._get_template_by_id(template_id, tenant_id)
+        if not template:
+            raise ConfigurationNotFoundError(f"场景模板 {template_id} 不存在")
+        
+        # 统计实例数量
+        instances_count = await self._count_template_instances(template_id, tenant_id)
+        
+        # 统计总执行次数
+        total_executions_stmt = select(func.sum(ScenarioInstanceModel.execution_count)).where(
+            and_(
+                ScenarioInstanceModel.template_id == template_id,
+                ScenarioInstanceModel.tenant_id == tenant_id,
+                ScenarioInstanceModel.is_deleted == False
+            )
+        )
+        total_executions_result = await self.db.execute(total_executions_stmt)
+        total_executions = total_executions_result.scalar() or 0
+        
+        # 统计成功次数
+        total_success_stmt = select(func.sum(ScenarioInstanceModel.success_count)).where(
+            and_(
+                ScenarioInstanceModel.template_id == template_id,
+                ScenarioInstanceModel.tenant_id == tenant_id,
+                ScenarioInstanceModel.is_deleted == False
+            )
+        )
+        total_success_result = await self.db.execute(total_success_stmt)
+        total_success = total_success_result.scalar() or 0
+        
+        success_rate = (total_success / total_executions * 100) if total_executions > 0 else 0
+        
+        return {
+            "template_id": str(template_id),
+            "template_name": template.template_name,
+            "template_code": template.template_code,
+            "usage_count": template.usage_count,
+            "last_used_at": template.last_used_at.isoformat() if template.last_used_at else None,
+            "instances_count": instances_count,
+            "total_executions": total_executions,
+            "total_success": total_success,
+            "success_rate": round(success_rate, 2),
+            "created_at": template.created_at.isoformat()
+        }
 
 
 class ScenarioInstanceService:
@@ -616,4 +809,198 @@ class ScenarioInstanceService:
         for instance in instances:
             responses.append(await self._build_instance_response(instance))
         
-        return responses, total 
+        return responses, total
+    
+    async def update_instance(
+        self,
+        instance_id: UUID,
+        update_data: ScenarioInstanceUpdateDTO,
+        updated_by: str,
+        tenant_id: str
+    ) -> ScenarioInstanceResponseDTO:
+        """更新场景实例"""
+        instance = await self._get_instance_by_id(instance_id, tenant_id)
+        if not instance:
+            raise ConfigurationNotFoundError(f"场景实例 {instance_id} 不存在")
+        
+        try:
+            update_dict = update_data.dict(exclude_unset=True)
+            
+            # 验证配置更新
+            if any(key in update_dict for key in ['custom_configurations', 'form_config_overrides', 
+                                                 'workflow_config_overrides', 'business_rule_overrides']):
+                # 重新合并和验证配置
+                template = await self.template_service._get_template_by_id(instance.template_id, tenant_id)
+                merged_config = await self._merge_configurations(
+                    template.default_configurations,
+                    {
+                        "custom": update_dict.get("custom_configurations", instance.custom_configurations),
+                        "form_overrides": update_dict.get("form_config_overrides", instance.form_config_overrides),
+                        "workflow_overrides": update_dict.get("workflow_config_overrides", instance.workflow_config_overrides),
+                        "business_rule_overrides": update_dict.get("business_rule_overrides", instance.business_rule_overrides),
+                        "spatial_overrides": update_dict.get("spatial_config_overrides", instance.spatial_config_overrides)
+                    }
+                )
+                await self._validate_instance_configuration(merged_config)
+            
+            update_dict['updated_by'] = updated_by
+            update_dict['updated_at'] = datetime.utcnow()
+            
+            stmt = update(ScenarioInstanceModel).where(
+                and_(
+                    ScenarioInstanceModel.id == instance_id,
+                    ScenarioInstanceModel.tenant_id == tenant_id
+                )
+            ).values(**update_dict)
+            
+            await self.db.execute(stmt)
+            await self.db.commit()
+            
+            # 重新获取更新后的实例
+            updated_instance = await self._get_instance_by_id(instance_id, tenant_id)
+            logger.info(f"更新场景实例成功: {instance_id}")
+            
+            return await self._build_instance_response(updated_instance)
+            
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"更新场景实例失败: {str(e)}")
+            raise
+    
+    async def _get_instance_by_id(self, instance_id: UUID, tenant_id: str) -> Optional[ScenarioInstanceModel]:
+        """根据ID获取实例"""
+        stmt = select(ScenarioInstanceModel).where(
+            and_(
+                ScenarioInstanceModel.id == instance_id,
+                ScenarioInstanceModel.tenant_id == tenant_id,
+                ScenarioInstanceModel.is_deleted == False
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def delete_instance(self, instance_id: UUID, deleted_by: str, tenant_id: str) -> bool:
+        """删除场景实例（软删除）"""
+        instance = await self._get_instance_by_id(instance_id, tenant_id)
+        if not instance:
+            raise ConfigurationNotFoundError(f"场景实例 {instance_id} 不存在")
+        
+        # 检查是否有正在执行的任务
+        active_executions = await self._count_active_executions(instance_id, tenant_id)
+        if active_executions > 0:
+            raise ConfigurationValidationError(f"实例有 {active_executions} 个正在执行的任务，无法删除")
+        
+        try:
+            stmt = update(ScenarioInstanceModel).where(
+                and_(
+                    ScenarioInstanceModel.id == instance_id,
+                    ScenarioInstanceModel.tenant_id == tenant_id
+                )
+            ).values(
+                is_deleted=True,
+                deleted_by=deleted_by,
+                deleted_at=datetime.utcnow()
+            )
+            
+            await self.db.execute(stmt)
+            await self.db.commit()
+            
+            logger.info(f"删除场景实例成功: {instance_id}")
+            return True
+            
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"删除场景实例失败: {str(e)}")
+            raise
+    
+    async def _count_active_executions(self, instance_id: UUID, tenant_id: str) -> int:
+        """统计实例的活跃执行数量"""
+        stmt = select(func.count(ScenarioExecutionModel.id)).where(
+            and_(
+                ScenarioExecutionModel.scenario_instance_id == instance_id,
+                ScenarioExecutionModel.tenant_id == tenant_id,
+                ScenarioExecutionModel.execution_status.in_(['pending', 'running'])
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar()
+    
+    async def activate_instance(
+        self, 
+        instance_id: UUID, 
+        updated_by: str, 
+        tenant_id: str
+    ) -> ScenarioInstanceResponseDTO:
+        """激活场景实例"""
+        instance = await self._get_instance_by_id(instance_id, tenant_id)
+        if not instance:
+            raise ConfigurationNotFoundError(f"场景实例 {instance_id} 不存在")
+        
+        if instance.instance_status == ScenarioInstanceStatus.ACTIVE.value:
+            raise ConfigurationValidationError("实例已经是激活状态")
+        
+        try:
+            stmt = update(ScenarioInstanceModel).where(
+                and_(
+                    ScenarioInstanceModel.id == instance_id,
+                    ScenarioInstanceModel.tenant_id == tenant_id
+                )
+            ).values(
+                instance_status=ScenarioInstanceStatus.ACTIVE.value,
+                updated_by=updated_by,
+                updated_at=datetime.utcnow()
+            )
+            
+            await self.db.execute(stmt)
+            await self.db.commit()
+            
+            # 重新获取更新后的实例
+            updated_instance = await self._get_instance_by_id(instance_id, tenant_id)
+            logger.info(f"激活场景实例成功: {instance_id}")
+            
+            return await self._build_instance_response(updated_instance)
+            
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"激活场景实例失败: {str(e)}")
+            raise
+    
+    async def deactivate_instance(
+        self, 
+        instance_id: UUID, 
+        updated_by: str, 
+        tenant_id: str
+    ) -> ScenarioInstanceResponseDTO:
+        """停用场景实例"""
+        instance = await self._get_instance_by_id(instance_id, tenant_id)
+        if not instance:
+            raise ConfigurationNotFoundError(f"场景实例 {instance_id} 不存在")
+        
+        if instance.instance_status == ScenarioInstanceStatus.INACTIVE.value:
+            raise ConfigurationValidationError("实例已经是停用状态")
+        
+        try:
+            stmt = update(ScenarioInstanceModel).where(
+                and_(
+                    ScenarioInstanceModel.id == instance_id,
+                    ScenarioInstanceModel.tenant_id == tenant_id
+                )
+            ).values(
+                instance_status=ScenarioInstanceStatus.INACTIVE.value,
+                updated_by=updated_by,
+                updated_at=datetime.utcnow()
+            )
+            
+            await self.db.execute(stmt)
+            await self.db.commit()
+            
+            # 重新获取更新后的实例
+            updated_instance = await self._get_instance_by_id(instance_id, tenant_id)
+            logger.info(f"停用场景实例成功: {instance_id}")
+            
+            return await self._build_instance_response(updated_instance)
+            
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"停用场景实例失败: {str(e)}")
+            raise 
