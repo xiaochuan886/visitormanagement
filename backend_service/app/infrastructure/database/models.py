@@ -223,18 +223,34 @@ class VisitorModel(Base, TenantModel):
     site_id = Column(Integer, ForeignKey("sites.id"))
     survey_response_value = Column(Integer)
     
+    # 扩展状态字段（支持门岗和前台功能）
+    current_status = Column(String(50))  # pending, approved, checked_in, in_park, exited
+    entry_time = Column(DateTime(timezone=True))  # 实际入园时间
+    exit_time = Column(DateTime(timezone=True))   # 实际离园时间
+    current_location = Column(String(200))        # 当前位置
+    reception_desk_id = Column(String(50))        # 签到的前台设备ID
+    
     # 约束
     __table_args__ = (
         CheckConstraint("checkout_date IS NULL OR checkin_date IS NULL OR checkout_date > checkin_date", name='chk_visitors_checkout_after_checkin'),
         CheckConstraint("email IS NULL OR email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='chk_visitors_email'),
         CheckConstraint("gender IS NULL OR gender IN ('male', 'female', 'other')", name='chk_visitors_gender'),
         CheckConstraint("survey_response_value IS NULL OR (survey_response_value >= 1 AND survey_response_value <= 10)", name='chk_visitors_survey_score'),
+        CheckConstraint("exit_time IS NULL OR entry_time IS NULL OR exit_time > entry_time", name='chk_visitors_park_time_order'),
     )
     
     # 关系
     designation = relationship("DesignationModel")
     employee = relationship("EmployeeModel")
     site = relationship("SiteModel")
+    
+    # 新增关联关系
+    verifications = relationship("VisitorVerificationModel", back_populates="visitor")
+    entry_records = relationship("VisitorEntryModel", back_populates="visitor")
+    checkin_records = relationship("ReceptionCheckinModel", back_populates="visitor")
+    notifications = relationship("HostNotificationModel", back_populates="visitor")
+    meeting_bookings = relationship("MeetingRoomBookingModel", back_populates="visitor")
+    offline_verifications = relationship("OfflineVerificationModel", back_populates="visitor")
 
 
 class VisitorHistoryModel(Base, TenantModel):
@@ -535,13 +551,6 @@ WorkflowExecution = WorkflowExecutionModel
 BusinessRule = BusinessRuleModel
 RuleExecutionLog = RuleExecutionLogModel
 
-# 场景管理模型
-ScenarioTemplate = ScenarioTemplateModel
-ScenarioInstance = ScenarioInstanceModel
-ScenarioExecution = ScenarioExecutionModel
-ScenarioRoutingRule = ScenarioRoutingRuleModel
-ScenarioAnalytics = ScenarioAnalyticsModel
-
 class ScenarioTemplateModel(Base, TenantModel):
     """场景模板模型 - 定义可复用的场景模板"""
     __tablename__ = "scenario_templates"
@@ -773,3 +782,609 @@ class ScenarioAnalyticsModel(Base, TenantModel):
     
     # 关系
     scenario_instance = relationship("ScenarioInstanceModel") 
+
+
+# ==================== 门岗和前台扩展模型 ====================
+
+# 添加新的枚举类型
+device_type_enum = ENUM(
+    'gate_terminal', 'reception_kiosk', 'mobile_tablet', 'access_control',
+    'camera_system', 'printer', 'id_scanner', 'face_recognition', 'qr_scanner',
+    name='device_type'
+)
+
+device_status_enum = ENUM(
+    'online', 'offline', 'maintenance', 'error', 'disabled',
+    name='device_status'
+)
+
+verification_method_enum = ENUM(
+    'qr_code', 'id_card', 'face_recognition', 'manual', 'phone_otp',
+    name='verification_method'
+)
+
+verification_status_enum = ENUM(
+    'success', 'failed', 'pending', 'blacklist', 'expired',
+    name='verification_status'
+)
+
+checkin_method_enum = ENUM(
+    'qr_code', 'manual', 'face_recognition', 'id_card', 'self_service',
+    name='checkin_method'
+)
+
+notification_channel_enum = ENUM(
+    'wechat', 'email', 'sms', 'phone_call', 'system_notification',
+    name='notification_channel'
+)
+
+
+class DeviceModel(Base, TenantModel):
+    """设备模型 - 门岗、前台、移动设备统一管理"""
+    __tablename__ = "devices"
+    
+    # 设备基本信息
+    device_id = Column(String(50), nullable=False, unique=True)
+    device_name = Column(String(100), nullable=False)
+    device_type = Column(device_type_enum, nullable=False)
+    device_model = Column(String(100))
+    serial_number = Column(String(100))
+    
+    # 位置信息
+    location = Column(String(200))
+    site_id = Column(Integer, ForeignKey("sites.id"))
+    zone = Column(String(100))
+    floor = Column(String(50))
+    
+    # 网络信息
+    ip_address = Column(String(45))
+    mac_address = Column(String(17))
+    port = Column(Integer)
+    
+    # 状态信息
+    status = Column(device_status_enum, default='offline')
+    last_heartbeat = Column(DateTime(timezone=True))
+    last_maintenance = Column(DateTime(timezone=True))
+    
+    # 功能配置
+    capabilities = Column(postgresql.JSONB)  # 设备能力列表
+    configuration = Column(postgresql.JSONB)  # 设备配置参数
+    firmware_version = Column(String(50))
+    software_version = Column(String(50))
+    
+    # 管理信息
+    admin_user = Column(String(100))
+    installation_date = Column(DateTime(timezone=True))
+    warranty_expire = Column(DateTime(timezone=True))
+    notes = Column(Text)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("port IS NULL OR (port >= 1 AND port <= 65535)", name='chk_devices_port'),
+    )
+    
+    # 关系
+    site = relationship("SiteModel")
+    device_status_logs = relationship("DeviceStatusLogModel", back_populates="device")
+    verifications = relationship("VisitorVerificationModel", back_populates="device")
+
+
+class DeviceStatusLogModel(Base, TenantModel):
+    """设备状态日志模型"""
+    __tablename__ = "device_status_logs"
+    
+    device_id = Column(String(50), ForeignKey("devices.device_id"), nullable=False)
+    status_before = Column(device_status_enum)
+    status_after = Column(device_status_enum, nullable=False)
+    
+    # 状态详情
+    cpu_usage = Column(Float)
+    memory_usage = Column(Float)
+    disk_usage = Column(Float)
+    network_latency = Column(Float)
+    temperature = Column(Float)
+    
+    # 变更信息
+    change_reason = Column(String(200))
+    operator = Column(String(100))
+    error_message = Column(Text)
+    status_timestamp = Column(DateTime(timezone=True), default=func.now())
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("cpu_usage IS NULL OR (cpu_usage >= 0 AND cpu_usage <= 100)", name='chk_cpu_usage'),
+        CheckConstraint("memory_usage IS NULL OR (memory_usage >= 0 AND memory_usage <= 100)", name='chk_memory_usage'),
+        CheckConstraint("disk_usage IS NULL OR (disk_usage >= 0 AND disk_usage <= 100)", name='chk_disk_usage'),
+    )
+    
+    # 关系
+    device = relationship("DeviceModel", back_populates="device_status_logs")
+
+
+class VisitorVerificationModel(Base, TenantModel):
+    """访客验证记录模型"""
+    __tablename__ = "visitor_verifications"
+    
+    # 基本信息
+    verification_id = Column(String(100), nullable=False, unique=True)
+    visitor_id = Column(Integer, ForeignKey("visitors.id"), nullable=False)
+    device_id = Column(String(50), ForeignKey("devices.device_id"), nullable=False)
+    
+    # 验证信息
+    verification_method = Column(verification_method_enum, nullable=False)
+    verification_status = Column(verification_status_enum, nullable=False)
+    confidence_score = Column(Float, default=0.0)  # 0-100
+    verification_data = Column(postgresql.JSONB)  # 原始验证数据
+    
+    # 验证结果
+    blacklist_check = Column(Boolean, default=False)
+    time_window_valid = Column(Boolean, default=True)
+    area_permission_valid = Column(Boolean, default=True)
+    access_granted = Column(Boolean, default=False)
+    access_areas = Column(postgresql.JSONB)  # 允许访问的区域
+    valid_until = Column(DateTime(timezone=True))
+    
+    # 操作信息
+    operator = Column(String(100))
+    verification_time = Column(DateTime(timezone=True), default=func.now())
+    remarks = Column(Text)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("confidence_score >= 0 AND confidence_score <= 100", name='chk_confidence_score'),
+    )
+    
+    # 关系
+    visitor = relationship("VisitorModel")
+    device = relationship("DeviceModel", back_populates="verifications")
+
+
+class VisitorEntryModel(Base, TenantModel):
+    """访客入园记录模型"""
+    __tablename__ = "visitor_entries"
+    
+    # 基本信息
+    entry_id = Column(String(100), nullable=False, unique=True)
+    visitor_id = Column(Integer, ForeignKey("visitors.id"), nullable=False)
+    gate_id = Column(String(50), ForeignKey("devices.device_id"), nullable=False)
+    
+    # 入园信息
+    entry_time = Column(DateTime(timezone=True), default=func.now())
+    exit_time = Column(DateTime(timezone=True))
+    entry_photo_url = Column(String(500))
+    exit_photo_url = Column(String(500))
+    
+    # 访客证信息
+    badge_number = Column(String(50))
+    badge_type = Column(String(50))
+    badge_issued = Column(Boolean, default=False)
+    badge_returned = Column(Boolean, default=False)
+    
+    # 车辆信息
+    vehicle_plate = Column(String(20))
+    vehicle_type = Column(String(50))
+    parking_spot = Column(String(50))
+    vehicle_photo_url = Column(String(500))
+    
+    # 权限信息
+    access_areas = Column(postgresql.JSONB)  # 可访问区域
+    access_valid_until = Column(DateTime(timezone=True))
+    escort_required = Column(Boolean, default=False)
+    
+    # 健康检查
+    temperature_check = Column(Float)
+    health_code_status = Column(String(20))
+    health_check_passed = Column(Boolean, default=True)
+    
+    # 操作信息
+    operator = Column(String(100))
+    entry_status = Column(String(50), default='entered')  # entered, exited
+    remarks = Column(Text)
+    
+    # 关系
+    visitor = relationship("VisitorModel")
+    gate_device = relationship("DeviceModel", foreign_keys=[gate_id])
+
+
+class ReceptionCheckinModel(Base, TenantModel):
+    """前台签到记录模型"""
+    __tablename__ = "reception_checkins"
+    
+    # 基本信息
+    checkin_id = Column(String(100), nullable=False, unique=True)
+    visitor_id = Column(Integer, ForeignKey("visitors.id"), nullable=False)
+    reception_desk_id = Column(String(50), ForeignKey("devices.device_id"), nullable=False)
+    
+    # 签到信息
+    checkin_method = Column(checkin_method_enum, nullable=False)
+    checkin_time = Column(DateTime(timezone=True), default=func.now())
+    checkin_status = Column(String(50), default='completed')  # completed, waiting, cancelled
+    photo_url = Column(String(500))
+    
+    # 等候信息
+    waiting_area_id = Column(String(100))
+    queue_number = Column(Integer)
+    estimated_wait_time = Column(Integer)  # 分钟
+    actual_wait_time = Column(Integer)  # 分钟
+    called_time = Column(DateTime(timezone=True))
+    
+    # 服务信息
+    receptionist = Column(String(100))
+    services_provided = Column(postgresql.JSONB)  # 提供的服务
+    visitor_satisfaction = Column(Integer)  # 1-5评分
+    service_notes = Column(Text)
+    
+    # 操作信息
+    operator = Column(String(100))
+    remarks = Column(Text)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("queue_number IS NULL OR queue_number > 0", name='chk_queue_number'),
+        CheckConstraint("estimated_wait_time IS NULL OR estimated_wait_time >= 0", name='chk_estimated_wait'),
+        CheckConstraint("visitor_satisfaction IS NULL OR (visitor_satisfaction >= 1 AND visitor_satisfaction <= 5)", name='chk_satisfaction'),
+    )
+    
+    # 关系
+    visitor = relationship("VisitorModel")
+    reception_device = relationship("DeviceModel", foreign_keys=[reception_desk_id])
+
+
+class HostNotificationModel(Base, TenantModel):
+    """主机通知记录模型"""
+    __tablename__ = "host_notifications"
+    
+    # 基本信息
+    notification_id = Column(String(100), nullable=False, unique=True)
+    visitor_id = Column(Integer, ForeignKey("visitors.id"), nullable=False)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    
+    # 通知内容
+    notification_channels = Column(postgresql.JSONB)  # 通知渠道列表
+    notification_content = Column(postgresql.JSONB)  # 通知内容
+    sent_at = Column(DateTime(timezone=True), default=func.now())
+    
+    # 发送状态
+    delivery_status = Column(String(50), default='sent')  # sent, failed, partial
+    delivery_results = Column(postgresql.JSONB)  # 各渠道发送结果
+    read_status = Column(String(50), default='unread')  # unread, read
+    read_at = Column(DateTime(timezone=True))
+    
+    # 响应信息
+    response_action = Column(String(50))  # accept, decline, delay
+    response_message = Column(Text)
+    response_time = Column(DateTime(timezone=True))
+    estimated_arrival_minutes = Column(Integer)
+    
+    # 超时处理
+    timeout_minutes = Column(Integer, default=30)
+    auto_processed = Column(Boolean, default=False)
+    auto_process_action = Column(String(50))
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("estimated_arrival_minutes IS NULL OR estimated_arrival_minutes > 0", name='chk_arrival_minutes'),
+        CheckConstraint("timeout_minutes > 0", name='chk_timeout_minutes'),
+    )
+    
+    # 关系
+    visitor = relationship("VisitorModel")
+    employee = relationship("EmployeeModel")
+
+
+class MeetingRoomModel(Base, TenantModel):
+    """会议室模型"""
+    __tablename__ = "meeting_rooms"
+    
+    # 基本信息
+    room_name = Column(String(100), nullable=False)
+    room_code = Column(String(50), nullable=False, unique=True)
+    description = Column(Text)
+    
+    # 位置信息
+    location = Column(String(200))
+    site_id = Column(Integer, ForeignKey("sites.id"))
+    floor = Column(String(50))
+    building = Column(String(100))
+    
+    # 容量信息
+    capacity = Column(Integer, nullable=False)
+    area_sqm = Column(Float)
+    
+    # 设备设施
+    amenities = Column(postgresql.JSONB)  # 设备设施列表
+    av_equipment = Column(postgresql.JSONB)  # 音视频设备
+    furniture = Column(postgresql.JSONB)  # 家具配置
+    
+    # 预订规则
+    booking_rules = Column(postgresql.JSONB)  # 预订规则
+    advance_booking_days = Column(Integer, default=30)
+    max_booking_hours = Column(Integer, default=8)
+    min_booking_minutes = Column(Integer, default=30)
+    
+    # 状态信息
+    room_status = Column(String(50), default='available')  # available, occupied, maintenance
+    is_active = Column(Boolean, default=True)
+    
+    # 管理信息
+    room_manager = Column(String(100))
+    hourly_rate = Column(Float)
+    currency = Column(String(10), default='CNY')
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("capacity > 0", name='chk_room_capacity'),
+        CheckConstraint("area_sqm IS NULL OR area_sqm > 0", name='chk_room_area'),
+        CheckConstraint("advance_booking_days > 0", name='chk_advance_booking'),
+        CheckConstraint("hourly_rate IS NULL OR hourly_rate >= 0", name='chk_hourly_rate'),
+    )
+    
+    # 关系
+    site = relationship("SiteModel")
+    bookings = relationship("MeetingRoomBookingModel", back_populates="meeting_room")
+
+
+class MeetingRoomBookingModel(Base, TenantModel):
+    """会议室预订记录模型"""
+    __tablename__ = "meeting_room_bookings"
+    
+    # 基本信息
+    booking_id = Column(String(100), nullable=False, unique=True)
+    room_id = Column(Integer, ForeignKey("meeting_rooms.id"), nullable=False)
+    visitor_id = Column(Integer, ForeignKey("visitors.id"))
+    employee_id = Column(Integer, ForeignKey("employees.id"))
+    
+    # 预订时间
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
+    
+    # 会议信息
+    meeting_title = Column(String(200))
+    meeting_purpose = Column(Text)
+    attendee_count = Column(Integer)
+    attendees = Column(postgresql.JSONB)  # 参会人员列表
+    
+    # 预订状态
+    booking_status = Column(String(50), default='confirmed')  # confirmed, cancelled, completed
+    booking_source = Column(String(50), default='reception_desk')  # reception_desk, api, system
+    
+    # 服务需求
+    equipment_needs = Column(postgresql.JSONB)  # 设备需求
+    catering_request = Column(Text)  # 餐饮需求
+    special_requirements = Column(Text)  # 特殊需求
+    
+    # 费用信息
+    booking_fee = Column(Float)
+    currency = Column(String(10), default='CNY')
+    payment_status = Column(String(50), default='unpaid')  # unpaid, paid, waived
+    
+    # 操作信息
+    booked_by = Column(String(100))
+    booking_time = Column(DateTime(timezone=True), default=func.now())
+    cancelled_at = Column(DateTime(timezone=True))
+    cancelled_by = Column(String(100))
+    cancellation_reason = Column(Text)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("end_time > start_time", name='chk_booking_time_order'),
+        CheckConstraint("duration_minutes > 0", name='chk_booking_duration'),
+        CheckConstraint("attendee_count IS NULL OR attendee_count > 0", name='chk_attendee_count'),
+        CheckConstraint("booking_fee IS NULL OR booking_fee >= 0", name='chk_booking_fee'),
+    )
+    
+    # 关系
+    meeting_room = relationship("MeetingRoomModel", back_populates="bookings")
+    visitor = relationship("VisitorModel")
+    employee = relationship("EmployeeModel")
+
+
+class OfflineVerificationModel(Base, TenantModel):
+    """离线验证记录模型"""
+    __tablename__ = "offline_verifications"
+    
+    # 基本信息
+    offline_id = Column(String(100), nullable=False, unique=True)
+    visitor_id = Column(Integer, ForeignKey("visitors.id"), nullable=False)
+    device_id = Column(String(50), ForeignKey("devices.device_id"), nullable=False)
+    
+    # 验证信息
+    verification_method = Column(verification_method_enum, nullable=False)
+    verification_data = Column(postgresql.JSONB, nullable=False)
+    offline_time = Column(DateTime(timezone=True), nullable=False)
+    device_timestamp = Column(DateTime(timezone=True), nullable=False)
+    
+    # 同步状态
+    sync_status = Column(String(50), default='pending')  # pending, synced, failed
+    sync_time = Column(DateTime(timezone=True))
+    sync_attempts = Column(Integer, default=0)
+    sync_error = Column(Text)
+    
+    # 验证结果
+    verification_result = Column(postgresql.JSONB)
+    access_granted = Column(Boolean)
+    
+    # 操作信息
+    operator = Column(String(100))
+    remarks = Column(Text)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("sync_attempts >= 0", name='chk_sync_attempts'),
+    )
+    
+    # 关系
+    visitor = relationship("VisitorModel")
+    device = relationship("DeviceModel")
+
+
+class SecurityAlertModel(Base, TenantModel):
+    """安全告警记录模型"""
+    __tablename__ = "security_alerts"
+    
+    # 基本信息
+    alert_id = Column(String(100), nullable=False, unique=True)
+    alert_type = Column(String(50), nullable=False)  # blacklist, unauthorized, system_error
+    alert_level = Column(String(20), default='medium')  # low, medium, high, critical
+    
+    # 告警来源
+    source_type = Column(String(50))  # device, system, manual
+    source_id = Column(String(100))  # 来源ID
+    device_id = Column(String(50), ForeignKey("devices.device_id"))
+    
+    # 告警内容
+    alert_title = Column(String(200), nullable=False)
+    alert_message = Column(Text)
+    alert_data = Column(postgresql.JSONB)  # 告警详细数据
+    
+    # 处理状态
+    status = Column(String(50), default='active')  # active, acknowledged, resolved, dismissed
+    acknowledged_by = Column(String(100))
+    acknowledged_at = Column(DateTime(timezone=True))
+    resolved_by = Column(String(100))
+    resolved_at = Column(DateTime(timezone=True))
+    resolution_notes = Column(Text)
+    
+    # 自动响应
+    auto_response_enabled = Column(Boolean, default=False)
+    auto_response_executed = Column(Boolean, default=False)
+    auto_response_result = Column(postgresql.JSONB)
+    
+    # 通知设置
+    notification_sent = Column(Boolean, default=False)
+    notification_channels = Column(postgresql.JSONB)
+    escalation_level = Column(Integer, default=0)
+    
+    # 时间信息
+    alert_time = Column(DateTime(timezone=True), default=func.now())
+    
+    # 关系
+    device = relationship("DeviceModel")
+
+
+class EmergencyOperationModel(Base, TenantModel):
+    """应急操作记录模型"""
+    __tablename__ = "emergency_operations"
+    
+    # 基本信息
+    emergency_id = Column(String(100), nullable=False, unique=True)
+    emergency_type = Column(String(50), nullable=False)  # fire, medical, security, system
+    
+    # 应急原因
+    emergency_reason = Column(Text, nullable=False)
+    emergency_description = Column(Text)
+    risk_level = Column(String(20), default='medium')  # low, medium, high, critical
+    
+    # 影响范围
+    affected_areas = Column(postgresql.JSONB)  # 影响区域
+    affected_devices = Column(postgresql.JSONB)  # 影响设备
+    gate_ids = Column(postgresql.JSONB)  # 门岗ID列表
+    
+    # 操作详情
+    operation_type = Column(String(50), nullable=False)  # gate_open, evacuation, lockdown
+    operation_data = Column(postgresql.JSONB)  # 操作数据
+    auto_recovery_minutes = Column(Integer, default=0)
+    requires_approval = Column(Boolean, default=True)
+    
+    # 授权信息
+    operator = Column(String(100), nullable=False)
+    authorization_level = Column(String(50))
+    approver = Column(String(100))
+    approval_time = Column(DateTime(timezone=True))
+    
+    # 执行状态
+    execution_status = Column(String(50), default='executed')  # executed, cancelled, failed
+    executed_at = Column(DateTime(timezone=True), default=func.now())
+    recovery_executed = Column(Boolean, default=False)
+    recovery_time = Column(DateTime(timezone=True))
+    
+    # 记录信息
+    incident_report = Column(Text)
+    lessons_learned = Column(Text)
+    follow_up_actions = Column(postgresql.JSONB)
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("auto_recovery_minutes >= 0", name='chk_auto_recovery'),
+    )
+
+
+class MobileSyncRecordModel(Base, TenantModel):
+    """移动端同步记录模型"""
+    __tablename__ = "mobile_sync_records"
+    
+    # 基本信息
+    sync_id = Column(String(100), nullable=False, unique=True)
+    device_id = Column(String(50), ForeignKey("devices.device_id"), nullable=False)
+    
+    # 同步信息
+    sync_type = Column(String(50), nullable=False)  # full, incremental, emergency
+    sync_direction = Column(String(20), default='bidirectional')  # up, down, bidirectional
+    
+    # 时间信息
+    sync_start_time = Column(DateTime(timezone=True), default=func.now())
+    sync_end_time = Column(DateTime(timezone=True))
+    last_sync_time = Column(DateTime(timezone=True))
+    
+    # 同步范围
+    sync_date_from = Column(DateTime(timezone=True))
+    sync_date_to = Column(DateTime(timezone=True))
+    data_types = Column(postgresql.JSONB)  # 同步的数据类型
+    
+    # 同步结果
+    sync_status = Column(String(50), default='completed')  # completed, failed, partial
+    total_records = Column(Integer, default=0)
+    successful_records = Column(Integer, default=0)
+    failed_records = Column(Integer, default=0)
+    
+    # 数据传输
+    data_size_kb = Column(Float, default=0.0)
+    compression_ratio = Column(Float, default=1.0)
+    transfer_time_seconds = Column(Float)
+    
+    # 网络信息
+    network_quality = Column(String(20))  # excellent, good, fair, poor
+    download_speed_kbps = Column(Float)
+    upload_speed_kbps = Column(Float)
+    
+    # 错误信息
+    error_details = Column(postgresql.JSONB)
+    sync_conflicts = Column(postgresql.JSONB)  # 同步冲突记录
+    
+    # 约束
+    __table_args__ = (
+        CheckConstraint("total_records >= 0", name='chk_total_records'),
+        CheckConstraint("successful_records >= 0", name='chk_successful_records'),
+        CheckConstraint("failed_records >= 0", name='chk_failed_records'),
+        CheckConstraint("successful_records + failed_records <= total_records", name='chk_records_sum'),
+        CheckConstraint("data_size_kb >= 0", name='chk_data_size'),
+        CheckConstraint("compression_ratio > 0", name='chk_compression_ratio'),
+    )
+    
+    # 关系
+    device = relationship("DeviceModel") 
+
+
+# ==================== 模型别名定义 ====================
+
+# 场景管理模型别名
+ScenarioTemplate = ScenarioTemplateModel
+ScenarioInstance = ScenarioInstanceModel
+ScenarioExecution = ScenarioExecutionModel
+ScenarioRoutingRule = ScenarioRoutingRuleModel
+ScenarioAnalytics = ScenarioAnalyticsModel
+
+# 门岗前台模型别名
+Device = DeviceModel
+DeviceStatusLog = DeviceStatusLogModel
+VisitorVerification = VisitorVerificationModel
+VisitorEntry = VisitorEntryModel
+ReceptionCheckin = ReceptionCheckinModel
+HostNotification = HostNotificationModel
+MeetingRoom = MeetingRoomModel
+MeetingRoomBooking = MeetingRoomBookingModel
+OfflineVerification = OfflineVerificationModel
+SecurityAlert = SecurityAlertModel
+EmergencyOperation = EmergencyOperationModel
+MobileSyncRecord = MobileSyncRecordModel 

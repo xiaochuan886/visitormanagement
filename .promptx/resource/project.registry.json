@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "source": "project",
+  "metadata": {
+    "version": "2.0.0",
+    "description": "project 级资源注册表",
+    "createdAt": "2025-06-20T08:15:35.738Z",
+    "updatedAt": "2025-06-20T08:15:35.740Z",
+    "resourceCount": 4
+  },
+  "resources": [
+    {
+      "id": "visitor-management-python-architect",
+      "source": "project",
+      "protocol": "role",
+      "name": "Visitor Management Python Architect 角色",
+      "description": "专业角色，提供特定领域的专业能力",
+      "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/visitor-management-python-architect.role.md",
+      "metadata": {
+        "createdAt": "2025-06-20T08:15:35.739Z",
+        "updatedAt": "2025-06-20T08:15:35.739Z",
+        "scannedAt": "2025-06-20T08:15:35.739Z"
+      }
+    },
+    {
+      "id": "visitor-management-thinking",
+      "source": "project",
+      "protocol": "thought",
+      "name": "Visitor Management Thinking 思维模式",
+      "description": "思维模式，指导AI的思考方式",
+      "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/thought/visitor-management-thinking.thought.md",
+      "metadata": {
+        "createdAt": "2025-06-20T08:15:35.739Z",
+        "updatedAt": "2025-06-20T08:15:35.739Z",
+        "scannedAt": "2025-06-20T08:15:35.739Z"
+      }
+    },
+    {
+      "id": "python-backend-development",
+      "source": "project",
+      "protocol": "execution",
+      "name": "Python Backend Development 执行模式",
+      "description": "执行模式，定义具体的行为模式",
+      "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/execution/python-backend-development.execution.md",
+      "metadata": {
+        "createdAt": "2025-06-20T08:15:35.740Z",
+        "updatedAt": "2025-06-20T08:15:35.740Z",
+        "scannedAt": "2025-06-20T08:15:35.740Z"
+      }
+    },
+    {
+      "id": "visitor-management-expertise",
+      "source": "project",
+      "protocol": "knowledge",
+      "name": "Visitor Management Expertise 知识库",
+      "description": "知识库，提供专业知识和信息",
+      "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/knowledge/visitor-management-expertise.knowledge.md",
+      "metadata": {
+        "createdAt": "2025-06-20T08:15:35.740Z",
+        "updatedAt": "2025-06-20T08:15:35.740Z",
+        "scannedAt": "2025-06-20T08:15:35.740Z"
+      }
+    }
+  ],
+  "stats": {
+    "totalResources": 4,
+    "byProtocol": {
+      "role": 1,
+      "thought": 1,
+      "execution": 1,
+      "knowledge": 1
+    },
+    "bySource": {
+      "project": 4
+    }
+  }
+}

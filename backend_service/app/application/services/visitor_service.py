@@ -78,7 +78,7 @@ class VisitorService:
         pass_code = self._generate_pass_code()
         
         try:
-            # 创建访客模型
+            # 创建访客模型 - 包含门岗前台扩展字段
             visitor = VisitorModel(
                 pass_code=pass_code,
                 name=visitor_data.name,
@@ -98,6 +98,13 @@ class VisitorService:
                 promise=visitor_data.promise,
                 site_id=visitor_data.site_id,
                 status=VisitorStatus.PENDING,  # 使用枚举值
+                # 门岗前台扩展字段默认值
+                current_status=None,
+                entry_time=None,
+                exit_time=None,
+                current_location=None,
+                reception_desk_id=None,
+                # 租户和审计字段
                 tenant_id=tenant_id,
                 created_by=created_by
             )

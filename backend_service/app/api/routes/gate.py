@@ -15,7 +15,7 @@ from app.application.dto.gate_dto import (
     EmergencyOpenDTO,
     GateDeviceStatusDTO
 )
-from app.application.services.security_gate_service import SecurityGateService
+from app.application.services.gate_verification_service import GateVerificationService as SecurityGateService
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.tenant import get_current_tenant
 

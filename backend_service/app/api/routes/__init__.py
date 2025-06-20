@@ -17,6 +17,13 @@ from .business_rules import router as business_rules_router
 from .scenarios import router as scenarios_router
 from .scenario_templates import router as scenario_templates_router
 
+# 门岗前台移动端路由
+from .gate import router as gate_router
+from .reception import router as reception_router
+from .mobile import router as mobile_router
+from .devices import router as devices_router
+from .health import router as health_router
+
 # 创建主API路由器
 api_router = APIRouter()
 
@@ -31,8 +38,15 @@ api_router.include_router(sites_router, prefix="/sites", tags=["站点管理"])
 api_router.include_router(form_config_router, prefix="/config/forms", tags=["表单配置"])
 api_router.include_router(workflow_config_router, prefix="/config/workflows", tags=["工作流配置"])
 api_router.include_router(spatial_config_router, prefix="/config/spatial", tags=["空间配置"])
-api_router.include_router(business_rules_router, prefix="/config/rules", tags=["业务规则"])
+api_router.include_router(business_rules_router, prefix="/config/rules", tags=["业务规则"]) 
 
 # 场景管理API路由
 api_router.include_router(scenarios_router, prefix="/config/scenarios", tags=["场景管理"])
 api_router.include_router(scenario_templates_router, prefix="/config/scenarios", tags=["场景模板"]) 
+
+# 门岗前台移动端API路由
+api_router.include_router(gate_router, prefix="/gate", tags=["门岗管理"])
+api_router.include_router(reception_router, prefix="/reception", tags=["前台管理"])
+api_router.include_router(mobile_router, prefix="/mobile", tags=["移动端"])
+api_router.include_router(devices_router, prefix="/devices", tags=["设备管理"])
+api_router.include_router(health_router, prefix="/health", tags=["系统健康检查"])

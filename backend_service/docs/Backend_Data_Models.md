@@ -1,22 +1,22 @@
 # 后端数据模型设计文档
 
 ## 📋 文档信息
-- **版本**: v2.0.0
+- **版本**: v3.0.0
 - **创建日期**: 2025-06-17
-- **最后更新**: 2025-06-17
-- **数据库版本**: 20250608_120000
+- **最后更新**: 2025-06-20
+- **数据库版本**: 20250620_150000
 - **适用角色**: 数据库管理员、后端开发者、架构师
 
 ## 🎯 数据模型概述
 
-访客管理系统采用 **PostgreSQL** 作为主数据库，包含 **16个核心数据表**，支持完整的访客管理业务流程和通用化配置引擎。数据模型遵循 **多租户架构**，实现租户级数据隔离。
+访客管理系统采用 **PostgreSQL** 作为主数据库，包含 **28个核心数据表**，支持完整的访客管理业务流程、场景化配置引擎和门岗前台系统。数据模型遵循 **多租户架构**，实现租户级数据隔离。
 
 ### 数据库特性
 - ✅ **多租户支持**: 所有业务表包含 tenant_id 字段
 - ✅ **审计追踪**: 创建者、更新者、删除状态完整记录
 - ✅ **软删除**: 逻辑删除，支持数据恢复
 - ✅ **JSONB支持**: 灵活的半结构化数据存储
-- ✅ **高性能索引**: 34个优化索引，覆盖所有查询场景
+- ✅ **高性能索引**: 56个优化索引，覆盖所有查询场景
 - ✅ **完整性约束**: 外键关系、唯一性约束、检查约束
 
 ## 🏗️ 数据库架构
@@ -35,15 +35,37 @@
 │   ├── approval_history (审批历史)
 │   ├── checkin_points (签到点)
 │   └── companions (同行人员)
-└── 配置引擎表
-    ├── form_configurations (表单配置)
-    ├── form_field_configurations (表单字段配置)
-    ├── spatial_configurations (空间配置)
-    ├── spatial_entities (空间实体)
-    ├── workflow_configurations (工作流配置)
-    ├── workflow_executions (工作流执行)
-    ├── business_rules (业务规则)
-    └── rule_execution_logs (规则执行日志)
+├── 配置引擎表
+│   ├── form_configurations (表单配置)
+│   ├── form_field_configurations (表单字段配置)
+│   ├── spatial_configurations (空间配置)
+│   ├── spatial_entities (空间实体)
+│   ├── workflow_configurations (工作流配置)
+│   ├── workflow_executions (工作流执行)
+│   ├── business_rules (业务规则)
+│   └── rule_execution_logs (规则执行日志)
+├── 场景化配置表 ⭐ NEW
+│   ├── scenario_templates (场景模板)
+│   ├── scenario_instances (场景实例)
+│   ├── scenario_executions (场景执行)
+│   ├── scenario_routing_rules (场景路由规则)
+│   ├── scenario_steps (场景步骤)
+│   ├── scenario_step_executions (场景步骤执行)
+│   ├── scenario_configurations (场景配置)
+│   └── scenario_execution_logs (场景执行日志)
+└── 门岗前台系统表 ⭐ NEW
+    ├── device_models (设备模型)
+    ├── visitor_verifications (访客验证记录)
+    ├── reception_checkins (前台签到记录)
+    ├── host_notifications (主机通知记录)
+    ├── waiting_areas (等候区域)
+    ├── meeting_rooms (会议室)
+    ├── visitor_feedback (访客反馈)
+    ├── gate_access_logs (门岗访问日志)
+    ├── device_status_logs (设备状态日志)
+    ├── mobile_sync_records (移动端同步记录)
+    ├── mobile_devices (移动设备)
+    └── offline_verification_cache (离线验证缓存)
 ```
 
 ## 📊 数据表详细设计
@@ -632,6 +654,213 @@ def upgrade():
     # 3. 创建索引
     op.create_index('idx_new_table_field', 'new_table', ['field'])
 ```
+
+## 🎯 场景化配置表设计
+
+### scenario_templates (场景模板表)
+**用途**: 存储场景模板定义
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 模板ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| template_name | VARCHAR(255) | NOT NULL | 模板名称 |
+| template_code | VARCHAR(100) | NOT NULL | 模板编码 |
+| template_category | VARCHAR(100) | NOT NULL | 模板分类 |
+| template_description | TEXT | | 模板描述 |
+| scenario_features | JSONB | | 场景特性配置 |
+| default_configurations | JSONB | | 默认配置 |
+| is_active | BOOLEAN | DEFAULT TRUE | 是否激活 |
+| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 创建时间 |
+| updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 更新时间 |
+| created_by | VARCHAR(100) | | 创建者 |
+| updated_by | VARCHAR(100) | | 更新者 |
+
+**索引**:
+- `idx_scenario_templates_tenant` - 租户查询优化
+- `idx_scenario_templates_code` - 模板编码查询
+- `idx_scenario_templates_category` - 分类查询
+
+### scenario_instances (场景实例表)
+**用途**: 存储基于模板创建的场景实例
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 实例ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| instance_name | VARCHAR(255) | NOT NULL | 实例名称 |
+| instance_code | VARCHAR(100) | NOT NULL | 实例编码 |
+| template_id | UUID | FOREIGN KEY(scenario_templates.id) | 模板ID |
+| priority_level | INTEGER | DEFAULT 5 | 优先级 |
+| is_active | BOOLEAN | DEFAULT TRUE | 是否激活 |
+| custom_configurations | JSONB | | 自定义配置 |
+| routing_rules | JSONB | | 路由规则 |
+| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 创建时间 |
+| updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 更新时间 |
+
+### scenario_executions (场景执行表)
+**用途**: 记录场景执行过程和结果
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 执行ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| instance_id | UUID | FOREIGN KEY(scenario_instances.id) | 场景实例ID |
+| entity_type | VARCHAR(50) | NOT NULL | 关联实体类型 |
+| entity_id | VARCHAR(100) | NOT NULL | 关联实体ID |
+| execution_status | execution_status | DEFAULT 'pending' | 执行状态 |
+| started_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 开始时间 |
+| completed_at | TIMESTAMP WITH TIME ZONE | | 完成时间 |
+| execution_result | JSONB | | 执行结果 |
+| error_details | JSONB | | 错误详情 |
+
+**枚举类型**:
+```sql
+CREATE TYPE execution_status AS ENUM ('pending', 'executing', 'completed', 'failed', 'cancelled');
+```
+
+## 🚪 门岗前台系统表设计
+
+### device_models (设备模型表)
+**用途**: 存储设备注册和配置信息
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 设备ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| device_name | VARCHAR(255) | NOT NULL | 设备名称 |
+| device_code | VARCHAR(100) | NOT NULL | 设备编码 |
+| device_type | device_type | NOT NULL | 设备类型 |
+| device_location | VARCHAR(255) | | 设备位置 |
+| device_status | device_status | DEFAULT 'offline' | 设备状态 |
+| capabilities | TEXT[] | | 设备能力 |
+| connection_info | JSONB | | 连接信息 |
+| last_heartbeat | TIMESTAMP WITH TIME ZONE | | 最后心跳 |
+| firmware_version | VARCHAR(50) | | 固件版本 |
+| is_active | BOOLEAN | DEFAULT TRUE | 是否激活 |
+| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 创建时间 |
+| updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 更新时间 |
+
+**枚举类型**:
+```sql
+CREATE TYPE device_type AS ENUM (
+    'gate_turnstile', 'card_reader', 'qr_scanner', 'face_recognition',
+    'thermal_camera', 'intercom', 'printer', 'display_screen', 'mobile_device'
+);
+CREATE TYPE device_status AS ENUM ('online', 'offline', 'maintenance', 'error');
+```
+
+### visitor_verifications (访客验证记录表)
+**用途**: 记录访客身份验证过程
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 验证ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| visitor_id | INTEGER | FOREIGN KEY(visitors.id) | 访客ID |
+| verification_method | verification_method | NOT NULL | 验证方式 |
+| device_id | UUID | FOREIGN KEY(device_models.id) | 设备ID |
+| verification_data | JSONB | | 验证数据 |
+| verification_result | JSONB | | 验证结果 |
+| is_successful | BOOLEAN | NOT NULL | 是否成功 |
+| verified_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 验证时间 |
+| error_code | VARCHAR(50) | | 错误代码 |
+| error_message | TEXT | | 错误信息 |
+
+**枚举类型**:
+```sql
+CREATE TYPE verification_method AS ENUM (
+    'qr_code', 'id_card', 'face_recognition', 'manual_entry', 'sms_otp'
+);
+```
+
+### reception_checkins (前台签到记录表)
+**用途**: 记录前台签到过程和服务
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 签到ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| visitor_id | INTEGER | FOREIGN KEY(visitors.id) | 访客ID |
+| reception_desk_id | VARCHAR(100) | | 前台工位ID |
+| checkin_method | checkin_method | NOT NULL | 签到方式 |
+| waiting_area_id | VARCHAR(100) | | 等候区域ID |
+| visitor_badge | VARCHAR(100) | | 访客胸牌号 |
+| services_provided | TEXT[] | | 提供的服务 |
+| special_requirements | TEXT[] | | 特殊需求 |
+| checkin_time | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 签到时间 |
+| estimated_wait_time | INTEGER | | 预计等待时间(分钟) |
+| receptionist_id | VARCHAR(100) | | 前台接待员ID |
+
+**枚举类型**:
+```sql
+CREATE TYPE checkin_method AS ENUM (
+    'qr_scan', 'face_recognition', 'id_card', 'manual_entry', 'self_service'
+);
+```
+
+### host_notifications (主机通知记录表)
+**用途**: 记录对被访人的通知发送情况
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 通知ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| visitor_id | INTEGER | FOREIGN KEY(visitors.id) | 访客ID |
+| employee_id | INTEGER | FOREIGN KEY(employees.id) | 员工ID |
+| notification_channels | TEXT[] | | 通知渠道 |
+| notification_content | JSONB | | 通知内容 |
+| sent_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 发送时间 |
+| delivery_status | JSONB | | 发送状态 |
+| read_at | TIMESTAMP WITH TIME ZONE | | 阅读时间 |
+| response_action | VARCHAR(100) | | 响应动作 |
+| response_time | TIMESTAMP WITH TIME ZONE | | 响应时间 |
+
+### mobile_sync_records (移动端同步记录表)
+**用途**: 记录移动端数据同步状态
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 同步ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| device_id | VARCHAR(100) | NOT NULL | 设备ID |
+| sync_type | sync_type | NOT NULL | 同步类型 |
+| last_sync_time | TIMESTAMP WITH TIME ZONE | | 上次同步时间 |
+| sync_status | sync_status | DEFAULT 'pending' | 同步状态 |
+| data_version | BIGINT | | 数据版本号 |
+| changes_count | INTEGER | DEFAULT 0 | 变更数量 |
+| sync_duration | INTEGER | | 同步耗时(毫秒) |
+| error_details | JSONB | | 错误详情 |
+| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 创建时间 |
+
+**枚举类型**:
+```sql
+CREATE TYPE sync_type AS ENUM ('full', 'incremental', 'emergency');
+CREATE TYPE sync_status AS ENUM ('pending', 'syncing', 'completed', 'failed');
+```
+
+### offline_verification_cache (离线验证缓存表)
+**用途**: 存储门岗离线验证所需的数据缓存
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|--------|----------|------|------|
+| id | UUID | PRIMARY KEY | 缓存ID |
+| tenant_id | VARCHAR(100) | NOT NULL | 租户ID |
+| device_id | VARCHAR(100) | NOT NULL | 设备ID |
+| visitor_pass_code | VARCHAR(50) | NOT NULL | 访客通行码 |
+| visitor_name_hash | VARCHAR(255) | | 访客姓名哈希 |
+| phone_hash | VARCHAR(255) | | 电话号码哈希 |
+| visit_window_start | TIMESTAMP WITH TIME ZONE | | 访问时间窗口开始 |
+| visit_window_end | TIMESTAMP WITH TIME ZONE | | 访问时间窗口结束 |
+| security_level | VARCHAR(50) | DEFAULT 'standard' | 安全等级 |
+| access_areas | TEXT[] | | 可访问区域 |
+| cache_expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL | 缓存过期时间 |
+| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | 创建时间 |
+
+**索引**:
+- `idx_offline_cache_device_date` - 设备和日期复合索引
+- `idx_offline_cache_pass_code` - 通行码查询
+- `idx_offline_cache_expires` - 过期时间清理
 
 ## 📈 监控与维护
 

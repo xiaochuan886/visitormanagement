@@ -7,14 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.connection import get_db
 from app.application.dto.mobile_dto import (
-    MobileVerificationDTO,
-    MobileCheckinDTO,
-    OfflineSyncDTO,
-    QRCodeVerificationDTO,
+    MobileQRVerificationDTO as MobileVerificationDTO,
+    MobileQuickCheckinDTO as MobileCheckinDTO,
+    MobileOfflineSyncDTO as OfflineSyncDTO,
+    MobileQRVerificationDTO as QRCodeVerificationDTO,
     MobileDeviceStatusDTO,
     EmergencyVerificationDTO
 )
-from app.application.services.mobile_verification_service import MobileVerificationService
+from app.application.services.mobile_sync_service import MobileSyncService as MobileVerificationService
 from app.api.dependencies.auth import get_current_user, get_mobile_user
 from app.api.dependencies.tenant import get_current_tenant
 

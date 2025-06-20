@@ -56,8 +56,8 @@ class EmployeeResponseDTO(BaseModel):
     department_id: int
     position: Optional[str]
     manager_id: Optional[int]
-    hire_date: Optional[date]
-    birth_date: Optional[date]
+    hire_date: Optional[datetime]
+    birth_date: Optional[datetime]
     gender: Optional[str]
     address: Optional[str]
     emergency_contact: Optional[str]

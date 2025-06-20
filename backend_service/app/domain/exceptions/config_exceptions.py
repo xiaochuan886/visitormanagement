@@ -464,4 +464,32 @@ class PermissionDeniedException(ConfigurationException):
                 "resource_type": resource_type,
                 "resource_id": resource_id
             }
-        ) 
+        )
+
+
+# ==================== 异常别名定义 ====================
+# 为了兼容现有代码，提供常用的异常类别名
+
+# 配置相关异常别名
+ConfigurationNotFoundError = ConfigurationNotFoundException
+ConfigurationValidationError = ValidationException
+ValidationError = ValidationException  # 通用验证异常别名
+ConfigurationConflictError = DuplicateConfigurationException
+
+# 表单相关异常别名
+FormConfigurationNotFoundError = FormConfigurationException
+FormValidationError = FormValidationException
+
+# 工作流相关异常别名
+WorkflowConfigurationError = WorkflowConfigurationException
+WorkflowExecutionError = WorkflowExecutionException
+WorkflowStepError = WorkflowStepException
+
+# 业务规则相关异常别名
+BusinessRuleConfigurationError = BusinessRuleConfigurationException
+BusinessRuleExecutionError = BusinessRuleExecutionException
+
+# 空间配置相关异常别名
+SpatialConfigurationError = SpatialConfigurationException
+SpatialEntityError = SpatialEntityException
+AccessControlError = AccessControlException 

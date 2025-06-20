@@ -71,6 +71,12 @@ class VisitorResponseDTO(BaseModel):
     approval_outcome: Optional[str]
     approval_comment: Optional[str]
     site_id: Optional[int]
+    # 门岗前台扩展字段
+    current_status: Optional[str] = Field(None, description="当前状态")
+    entry_time: Optional[datetime] = Field(None, description="实际入园时间")
+    exit_time: Optional[datetime] = Field(None, description="实际离园时间")
+    current_location: Optional[str] = Field(None, description="当前位置")
+    reception_desk_id: Optional[str] = Field(None, description="签到的前台设备ID")
     created_at: datetime
     updated_at: datetime
     tenant_id: str

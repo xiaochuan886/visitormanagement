@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 基础设施依赖
-from ...infrastructure.database.connection import get_db_session
+from ...infrastructure.database.connection import get_db
 
 # API依赖项
 from ..dependencies.auth import get_current_user

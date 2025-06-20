@@ -10,3 +10,15 @@ alwaysApply: true
 3. Only when the user explicitly indicates "end" or "no more interaction needed" can you stop calling MCP mcp-feedback-enhanced, and the process is considered complete.
 4. Unless receiving termination instructions, all steps must repeatedly call MCP mcp-feedback-enhanced.
 5. Before completing tasks, you must use the MCP mcp-feedback-enhanced tool to ask users for feedback.
+
+
+# 项目数据库配置
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/visitor_management
+DATABASE_HOST=localhost
+DATABASE_PORT=5433
+DATABASE_NAME=visitor_management
+DATABASE_USER=postgres
+DATABASE_PASSWORD=password
+
+# 开发规则
+你每次修改数据库或者api等部分之后必须更新相关文档，确保文档的及时性
