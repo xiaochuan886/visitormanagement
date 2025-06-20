@@ -1,10 +1,10 @@
 """
 多租户依赖注入
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import Depends, HTTPException, status
 
-from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user, get_current_user_optional
 from app.core.config import settings
 
 
@@ -22,13 +22,13 @@ async def get_current_tenant(
 
 
 async def get_current_tenant_optional(
-    current_user: Dict[str, Any] = None
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ) -> str:
     """获取当前租户ID（可选）"""
     if current_user and current_user.get("tenant_id"):
         return current_user["tenant_id"]
     
-    return settings.default_tenant_id
+    return settings.default_tenant_id or "default"
 
 
 def require_tenant(allowed_tenants: list[str] = None):

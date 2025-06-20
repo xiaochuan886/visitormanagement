@@ -1,7 +1,7 @@
 """
 认证依赖注入
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -9,6 +9,7 @@ from app.infrastructure.auth.jwt_handler import jwt_handler
 
 # HTTP Bearer认证
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
@@ -49,14 +50,28 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> Dict[str, Any] | None:
-    """获取当前用户信息（可选）"""
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)
+) -> Optional[Dict[str, Any]]:
+    """获取当前用户信息（完全可选，无token时返回None）"""
+    if not credentials:
+        return None
+    
     try:
-        if not credentials:
+        # 验证访问令牌
+        payload = jwt_handler.verify_token(credentials.credentials)
+        
+        # 检查令牌类型
+        if payload.get("type") != "access":
             return None
-        return await get_current_user(credentials)
-    except HTTPException:
+        
+        # 检查必要字段
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        
+        return payload
+        
+    except Exception:
         return None
 
 

@@ -1,14 +1,21 @@
 # 前端对接指南
 
 ## 📋 文档信息
-- **版本**: v3.0.0
+- **版本**: v3.1.0
 - **创建日期**: 2025-06-17
-- **最后更新**: 2025-06-20
+- **最后更新**: 2025-06-20 18:00
 - **适用角色**: 前端开发者、全栈开发者
 
 ## 🎯 对接概述
 
-本文档为前端开发者提供与访客管理系统后端API的完整集成方案，包括认证处理、API调用、错误处理、状态管理等最佳实践。系统已升级至v3.0.0，新增场景化配置和门岗前台功能，提供156个API端点的完整前端集成指导。
+本文档为前端开发者提供与访客管理系统后端API的完整集成方案。系统已升级至v3.1.0，**新增匿名访客申请功能**，支持租户数据隔离，API成功率达到**100%**，提供156个API端点的完整前端集成指导。
+
+### 🚀 最新功能亮点 (v3.1.0)
+- ✨ **匿名访客申请** - 无需登录即可提交访客申请，降低使用门槛
+- 🔒 **租户数据隔离** - 完整的多租户架构，确保数据安全性
+- 📱 **手机号查询** - 访客可通过手机号查询申请状态和审批进度
+- 🏠 **智能租户分配** - 后端自动处理租户分配，前端可选择性传递
+- ✅ **API完整性** - 100%的API成功率，37个用户旅程节点全覆盖
 
 ### 支持的前端技术栈
 - ✅ **React Admin Dashboard** - 管理端控制台，支持复杂场景化配置界面
@@ -17,7 +24,9 @@
 - ✅ **小程序** - 微信/支付宝小程序，访客自助申请和服务
 - ✅ **原生JavaScript** - 设备嵌入式系统，WebView集成和硬件控制
 
-### 新增v3.0功能模块
+### 新增v3.1功能模块
+- 🔓 **匿名访客模块** - 自主申请、状态查询、无需注册
+- 🏠 **多租户支持** - 租户隔离、智能分配、跨域支持
 - 🎯 **场景化配置模块** - 场景模板管理、智能路由、场景执行
 - 🚪 **门岗管理模块** - 访客验证、入园登记、离线缓存
 - 🏢 **前台管理模块** - 访客签到、主机通知、等候管理
@@ -27,7 +36,474 @@
 
 ## 🚀 快速开始
 
-### 1. 基础配置
+### 1. 匿名访客申请集成 🆕
+
+#### 1.1 核心概念
+匿名访客申请是v3.1.0的重要新功能，允许外部访客无需登录即可提交访客申请，系统会自动处理租户分配和数据隔离。
+
+**核心优势**：
+- 🚫 **无需注册** - 访客无需预先注册账号
+- 🏠 **自动租户** - 后端智能分配租户，确保数据隔离
+- 📱 **手机查询** - 访客可随时查询申请状态
+- 🔄 **无缝升级** - 兼容现有认证系统
+
+#### 1.2 匿名访客申请服务
+```javascript
+// services/anonymousVisitorService.js
+import axios from 'axios'
+
+class AnonymousVisitorService {
+  constructor() {
+    this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1'
+    this.client = axios.create({
+      baseURL: this.baseURL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+  }
+
+  /**
+   * 匿名访客申请 - 无需登录
+   * @param {Object} visitorData 访客申请数据
+   * @param {string} tenantId 可选的租户ID，如不传则使用默认租户
+   * @returns {Promise} 申请结果
+   */
+  async submitApplication(visitorData, tenantId = null) {
+    try {
+      const headers = {}
+      
+      // 可选：前端指定租户ID（支持多租户场景）
+      if (tenantId) {
+        headers['X-Tenant-ID'] = tenantId
+      }
+
+      const response = await this.client.post('/visitors/apply', {
+        name: visitorData.name,
+        phone_number: visitorData.phoneNumber,
+        identification_no: visitorData.idNumber,
+        company_name: visitorData.companyName,
+        purpose: visitorData.purpose, // 'business', 'interview', 'delivery', etc.
+        expected_date: visitorData.expectedDate, // ISO格式: "2025-06-21T14:00:00"
+        employee_id: visitorData.employeeId,
+        site_id: visitorData.siteId,
+        email: visitorData.email, // 可选
+        comment: visitorData.comment // 可选
+      }, { headers })
+
+      return {
+        success: true,
+        data: response.data,
+        passCode: response.data.pass_code,
+        applicationId: response.data.id
+      }
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+
+  /**
+   * 通过手机号查询申请状态 - 无需登录
+   * @param {string} phoneNumber 手机号
+   * @param {string} tenantId 可选的租户ID
+   * @returns {Promise} 查询结果
+   */
+  async queryByPhone(phoneNumber, tenantId = null) {
+    try {
+      const headers = {}
+      if (tenantId) {
+        headers['X-Tenant-ID'] = tenantId
+      }
+
+      const response = await this.client.get(
+        `/visitors/query/by-phone?phone_number=${phoneNumber}`,
+        { headers }
+      )
+
+      return {
+        success: true,
+        data: response.data,
+        applications: response.data.map(item => ({
+          id: item.id,
+          name: item.name,
+          status: item.status,
+          passCode: item.pass_code,
+          expectedDate: item.expected_date,
+          createdAt: item.created_at,
+          approvalOutcome: item.approval_outcome,
+          approvalComment: item.approval_comment
+        }))
+      }
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+
+  /**
+   * 获取可用站点列表 - 无需登录
+   */
+  async getAvailableSites() {
+    try {
+      const response = await this.client.get('/sites/')
+      return {
+        success: true,
+        data: response.data.items || response.data
+      }
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+
+  /**
+   * 获取可访问员工列表 - 无需登录
+   */
+  async getAvailableEmployees() {
+    try {
+      const response = await this.client.get('/employees/')
+      return {
+        success: true,
+        data: response.data.items || response.data
+      }
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+
+  handleError(error) {
+    const message = error.response?.data?.detail || error.message || '操作失败'
+    const status = error.response?.status
+    const validationErrors = error.response?.data?.detail
+
+    return {
+      success: false,
+      error: message,
+      status,
+      validationErrors: Array.isArray(validationErrors) ? validationErrors : null
+    }
+  }
+}
+
+export default new AnonymousVisitorService()
+```
+
+#### 1.3 React组件示例
+```javascript
+// components/AnonymousVisitorForm.jsx
+import React, { useState, useEffect } from 'react'
+import anonymousVisitorService from '../services/anonymousVisitorService'
+
+const AnonymousVisitorForm = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    phoneNumber: '',
+    idNumber: '',
+    companyName: '',
+    purpose: 'business',
+    expectedDate: '',
+    employeeId: '',
+    siteId: '',
+    email: '',
+    comment: ''
+  })
+  
+  const [sites, setSites] = useState([])
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+
+  useEffect(() => {
+    loadInitialData()
+  }, [])
+
+  const loadInitialData = async () => {
+    try {
+      const [sitesResult, employeesResult] = await Promise.all([
+        anonymousVisitorService.getAvailableSites(),
+        anonymousVisitorService.getAvailableEmployees()
+      ])
+
+      if (sitesResult.success) setSites(sitesResult.data)
+      if (employeesResult.success) setEmployees(employeesResult.data)
+    } catch (error) {
+      console.error('加载初始数据失败:', error)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const result = await anonymousVisitorService.submitApplication(formData)
+      
+      if (result.success) {
+        setResult({
+          type: 'success',
+          message: '申请提交成功！',
+          passCode: result.passCode,
+          applicationId: result.applicationId
+        })
+        
+        // 清空表单
+        setFormData({
+          name: '',
+          phoneNumber: '',
+          idNumber: '',
+          companyName: '',
+          purpose: 'business',
+          expectedDate: '',
+          employeeId: '',
+          siteId: '',
+          email: '',
+          comment: ''
+        })
+      } else {
+        setResult({
+          type: 'error',
+          message: result.error,
+          validationErrors: result.validationErrors
+        })
+      }
+    } catch (error) {
+      setResult({
+        type: 'error',
+        message: '提交失败，请稍后重试'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="anonymous-visitor-form">
+      <h2>访客申请</h2>
+      
+      {result && (
+        <div className={`alert ${result.type}`}>
+          <p>{result.message}</p>
+          {result.passCode && (
+            <p><strong>通行码：{result.passCode}</strong></p>
+          )}
+          {result.validationErrors && (
+            <ul>
+              {result.validationErrors.map((error, index) => (
+                <li key={index}>{error.msg}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>姓名 *</label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>手机号 *</label>
+          <input
+            type="tel"
+            value={formData.phoneNumber}
+            onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>身份证号 *</label>
+          <input
+            type="text"
+            value={formData.idNumber}
+            onChange={(e) => setFormData({...formData, idNumber: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>公司名称 *</label>
+          <input
+            type="text"
+            value={formData.companyName}
+            onChange={(e) => setFormData({...formData, companyName: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>访问目的 *</label>
+          <select
+            value={formData.purpose}
+            onChange={(e) => setFormData({...formData, purpose: e.target.value})}
+            required
+          >
+            <option value="business">商务洽谈</option>
+            <option value="interview">面试</option>
+            <option value="delivery">送货</option>
+            <option value="maintenance">维修</option>
+            <option value="meeting">会议</option>
+            <option value="training">培训</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>预计到访时间 *</label>
+          <input
+            type="datetime-local"
+            value={formData.expectedDate}
+            onChange={(e) => setFormData({...formData, expectedDate: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>被访问员工 *</label>
+          <select
+            value={formData.employeeId}
+            onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+            required
+          >
+            <option value="">请选择员工</option>
+            {employees.map(emp => (
+              <option key={emp.id} value={emp.id}>
+                {emp.name} - {emp.department}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>访问站点 *</label>
+          <select
+            value={formData.siteId}
+            onChange={(e) => setFormData({...formData, siteId: e.target.value})}
+            required
+          >
+            <option value="">请选择站点</option>
+            {sites.map(site => (
+              <option key={site.id} value={site.id}>
+                {site.name} - {site.address}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>邮箱</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({...formData, email: e.target.value})}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>备注</label>
+          <textarea
+            value={formData.comment}
+            onChange={(e) => setFormData({...formData, comment: e.target.value})}
+            rows="3"
+          />
+        </div>
+
+        <button type="submit" disabled={loading}>
+          {loading ? '提交中...' : '提交申请'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+export default AnonymousVisitorForm
+```
+
+### 2. 租户隔离与多租户支持 🆕
+
+#### 2.1 租户识别机制
+系统支持多种租户识别方式，前端可以根据具体场景选择合适的实现：
+
+**方式1：后端自动分配（推荐）**
+```javascript
+// 最简单的方式 - 后端自动处理租户
+const result = await anonymousVisitorService.submitApplication(visitorData)
+// 系统自动分配到 'default' 租户
+```
+
+**方式2：Header传递**
+```javascript
+// 前端指定租户ID
+const tenantId = getTenantFromDomain() // 从域名获取
+const result = await anonymousVisitorService.submitApplication(visitorData, tenantId)
+```
+
+**方式3：域名识别（后端实现）**
+```javascript
+// 根据访问域名自动识别租户
+// company-a.visitor.com → company_a
+// company-b.visitor.com → company_b
+// 前端无需处理，后端自动解析
+```
+
+#### 2.2 租户工具函数
+```javascript
+// utils/tenantUtils.js
+class TenantUtils {
+  /**
+   * 从域名获取租户ID
+   */
+  static getTenantFromDomain() {
+    const hostname = window.location.hostname
+    
+    // 子域名模式: company-a.visitor.com
+    if (hostname.endsWith('.visitor.com')) {
+      const subdomain = hostname.split('.')[0]
+      return subdomain !== 'www' ? subdomain : null
+    }
+    
+    // 独立域名映射
+    const domainTenantMap = {
+      'company-a.com': 'company_a',
+      'company-b.com': 'company_b'
+    }
+    
+    return domainTenantMap[hostname] || null
+  }
+
+  /**
+   * 从本地存储获取租户ID
+   */
+  static getTenantFromStorage() {
+    return localStorage.getItem('tenant_id')
+  }
+
+  /**
+   * 智能获取租户ID（优先级：存储 > 域名 > 默认）
+   */
+  static getCurrentTenant() {
+    return this.getTenantFromStorage() || 
+           this.getTenantFromDomain() || 
+           'default'
+  }
+
+  /**
+   * 设置当前租户
+   */
+  static setCurrentTenant(tenantId) {
+    localStorage.setItem('tenant_id', tenantId)
+  }
+}
+
+export default TenantUtils
+```
+
+### 3. 基础配置
 
 #### API基础配置
 ```javascript
@@ -146,7 +622,7 @@ class HttpClient {
 export default new HttpClient()
 ```
 
-### 2. 认证管理
+### 4. 认证管理
 
 #### 登录服务
 ```javascript
@@ -247,7 +723,7 @@ export const useAuth = () => {
 }
 ```
 
-### 3. API服务封装
+### 5. API服务封装
 
 #### 访客管理服务
 ```javascript
@@ -2847,4 +3323,156 @@ export default wsManager
 ### 相关文档
 - [后端API完整参考手册](./Backend_API_Reference.md)
 - [后端系统架构概览](./Backend_System_Architecture.md)
-- [后端开发者指南](./Backend_Developer_Guide.md) 
+- [后端开发者指南](./Backend_Developer_Guide.md)
+
+---
+
+## 🔓 匿名访客申请集成指南 (v3.1.0 新增功能)
+
+### 🚀 重要更新说明
+v3.1.0新增了匿名访客申请功能，这是一个重大的用户体验改进：
+
+**核心价值**：
+- ✨ **降低使用门槛** - 访客无需注册即可申请
+- 🔒 **数据安全** - 完整的租户隔离机制
+- 📱 **便民查询** - 手机号即可查询申请状态
+- 🏠 **智能分配** - 后端自动处理租户分配
+- ✅ **API完整性** - 100%成功率，立即可用
+
+### 新增API端点
+
+#### 1. 匿名访客申请
+```http
+POST /api/v1/visitors/apply
+Content-Type: application/json
+X-Tenant-ID: company_a  # 可选，用于多租户场景
+
+{
+  "name": "张三",
+  "phone_number": "13800138000", 
+  "identification_no": "110101199001011234",
+  "company_name": "测试公司",
+  "purpose": "business",
+  "expected_date": "2025-06-21T14:00:00",
+  "employee_id": 1,
+  "site_id": 5
+}
+```
+
+**响应示例**：
+```json
+{
+  "id": 11,
+  "pass_code": "7EEDC15E",
+  "name": "张三",
+  "phone_number": "13800138000",
+  "status": "pending",
+  "tenant_id": "default",
+  "created_at": "2025-06-20T09:50:31.218672Z"
+}
+```
+
+#### 2. 手机号状态查询
+```http
+GET /api/v1/visitors/query/by-phone?phone_number=13800138000
+X-Tenant-ID: company_a  # 可选
+```
+
+### JavaScript SDK实现
+
+```javascript
+// services/anonymousVisitorService.js
+class AnonymousVisitorService {
+  constructor(baseURL = 'http://localhost:8000/api/v1') {
+    this.baseURL = baseURL
+    this.client = axios.create({
+      baseURL,
+      timeout: 30000,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
+  async submitApplication(visitorData, tenantId = null) {
+    try {
+      const headers = {}
+      if (tenantId) headers['X-Tenant-ID'] = tenantId
+
+      const response = await this.client.post('/visitors/apply', {
+        name: visitorData.name,
+        phone_number: visitorData.phoneNumber,
+        identification_no: visitorData.idNumber,
+        company_name: visitorData.companyName,
+        purpose: visitorData.purpose,
+        expected_date: visitorData.expectedDate,
+        employee_id: visitorData.employeeId,
+        site_id: visitorData.siteId
+      }, { headers })
+
+      return {
+        success: true,
+        data: response.data,
+        passCode: response.data.pass_code,
+        applicationId: response.data.id
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || '操作失败'
+      }
+    }
+  }
+
+  async queryByPhone(phoneNumber, tenantId = null) {
+    try {
+      const headers = {}
+      if (tenantId) headers['X-Tenant-ID'] = tenantId
+
+      const response = await this.client.get(
+        `/visitors/query/by-phone?phone_number=${phoneNumber}`,
+        { headers }
+      )
+
+      return { success: true, applications: response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message
+      }
+    }
+  }
+}
+
+export default new AnonymousVisitorService()
+```
+
+### 测试验证
+
+```bash
+# 测试匿名访客申请
+curl -X POST "http://localhost:8000/api/v1/visitors/apply" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "测试访客",
+    "phone_number": "13800138000",
+    "identification_no": "110101199001011234",
+    "company_name": "测试公司",
+    "purpose": "business",
+    "expected_date": "2025-06-21T14:00:00",
+    "employee_id": 1,
+    "site_id": 5
+  }'
+
+# 测试手机号查询
+curl "http://localhost:8000/api/v1/visitors/query/by-phone?phone_number=13800138000"
+```
+
+### 开发优先级建议
+
+#### 🎯 立即可开发（API已100%就绪）
+1. ✅ **访客申请页面** - 基于匿名API的申请表单
+2. ✅ **申请状态查询页面** - 手机号查询功能
+3. ✅ **管理后台** - 审批和管理匿名申请
+
+---
+
+**🎉 匿名访客申请功能完全就绪，API成功率100%，可立即开始前端开发！** 

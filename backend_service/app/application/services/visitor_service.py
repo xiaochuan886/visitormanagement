@@ -63,7 +63,7 @@ class VisitorService:
     async def create_visitor(
         self, 
         visitor_data: VisitorCreateDTO, 
-        created_by: str, 
+        created_by: Optional[str], 
         tenant_id: str
     ) -> VisitorResponseDTO:
         """创建访客 - 增强验证版本"""
@@ -184,6 +184,33 @@ class VisitorService:
             page_size=query.page_size,
             total_pages=total_pages
         )
+    
+    async def get_visitors_by_phone(
+        self, 
+        phone_number: str, 
+        tenant_id: str
+    ) -> List[VisitorResponseDTO]:
+        """通过手机号查询访客申请（用于匿名查询状态）"""
+        stmt = (
+            select(VisitorModel)
+            .where(
+                and_(
+                    VisitorModel.phone_number == phone_number,
+                    VisitorModel.tenant_id == tenant_id,
+                    VisitorModel.is_deleted == False
+                )
+            )
+            .options(
+                selectinload(VisitorModel.employee),
+                selectinload(VisitorModel.site)
+            )
+            .order_by(VisitorModel.created_at.desc())
+        )
+        
+        result = await self.db.execute(stmt)
+        visitors = result.scalars().all()
+        
+        return [VisitorResponseDTO.from_orm(visitor) for visitor in visitors]
     
     async def get_visitor_by_id(
         self, 

@@ -4,8 +4,8 @@
   "metadata": {
     "version": "2.0.0",
     "description": "project 级资源注册表",
-    "createdAt": "2025-06-20T08:15:35.738Z",
-    "updatedAt": "2025-06-20T08:15:35.740Z",
+    "createdAt": "2025-06-20T10:43:07.564Z",
+    "updatedAt": "2025-06-20T10:43:07.565Z",
     "resourceCount": 4
   },
   "resources": [
@@ -17,9 +17,9 @@
       "description": "专业角色，提供特定领域的专业能力",
       "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/visitor-management-python-architect.role.md",
       "metadata": {
-        "createdAt": "2025-06-20T08:15:35.739Z",
-        "updatedAt": "2025-06-20T08:15:35.739Z",
-        "scannedAt": "2025-06-20T08:15:35.739Z"
+        "createdAt": "2025-06-20T10:43:07.564Z",
+        "updatedAt": "2025-06-20T10:43:07.564Z",
+        "scannedAt": "2025-06-20T10:43:07.564Z"
       }
     },
     {
@@ -30,9 +30,9 @@
       "description": "思维模式，指导AI的思考方式",
       "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/thought/visitor-management-thinking.thought.md",
       "metadata": {
-        "createdAt": "2025-06-20T08:15:35.739Z",
-        "updatedAt": "2025-06-20T08:15:35.739Z",
-        "scannedAt": "2025-06-20T08:15:35.739Z"
+        "createdAt": "2025-06-20T10:43:07.564Z",
+        "updatedAt": "2025-06-20T10:43:07.564Z",
+        "scannedAt": "2025-06-20T10:43:07.564Z"
       }
     },
     {
@@ -43,9 +43,9 @@
       "description": "执行模式，定义具体的行为模式",
       "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/execution/python-backend-development.execution.md",
       "metadata": {
-        "createdAt": "2025-06-20T08:15:35.740Z",
-        "updatedAt": "2025-06-20T08:15:35.740Z",
-        "scannedAt": "2025-06-20T08:15:35.740Z"
+        "createdAt": "2025-06-20T10:43:07.565Z",
+        "updatedAt": "2025-06-20T10:43:07.565Z",
+        "scannedAt": "2025-06-20T10:43:07.565Z"
       }
     },
     {
@@ -56,9 +56,9 @@
       "description": "知识库，提供专业知识和信息",
       "reference": "@project://.promptx/resource/domain/visitor-management-python-architect/knowledge/visitor-management-expertise.knowledge.md",
       "metadata": {
-        "createdAt": "2025-06-20T08:15:35.740Z",
-        "updatedAt": "2025-06-20T08:15:35.740Z",
-        "scannedAt": "2025-06-20T08:15:35.740Z"
+        "createdAt": "2025-06-20T10:43:07.565Z",
+        "updatedAt": "2025-06-20T10:43:07.565Z",
+        "scannedAt": "2025-06-20T10:43:07.565Z"
       }
     }
   ],

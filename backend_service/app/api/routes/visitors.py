@@ -1,7 +1,7 @@
 """
 访客管理API路由
 """
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,20 +17,44 @@ from app.application.dto.visitor_dto import (
     VisitorQueryDTO
 )
 from app.application.services.visitor_service import VisitorService
-from app.api.dependencies.auth import get_current_user
-from app.api.dependencies.tenant import get_current_tenant
+from app.api.dependencies.auth import get_current_user, get_current_user_optional
+from app.api.dependencies.tenant import get_current_tenant, get_current_tenant_optional
 
 router = APIRouter()
 
 
-@router.post("/", response_model=VisitorResponseDTO, summary="创建访客")
+@router.post("/apply", response_model=VisitorResponseDTO, summary="访客自主申请（无需登录）")
+async def apply_visitor(
+    visitor_data: VisitorCreateDTO,
+    db: AsyncSession = Depends(get_db),
+    tenant_id: str = Depends(get_current_tenant_optional)
+):
+    """访客自主申请，无需登录认证"""
+    service = VisitorService(db)
+    # 匿名创建，传入None作为创建者ID
+    return await service.create_visitor(visitor_data, None, tenant_id or "default")
+
+
+@router.get("/query/by-phone", response_model=List[VisitorResponseDTO], summary="通过手机号查询访客申请状态")
+async def query_visitor_by_phone(
+    phone_number: str = Query(..., description="手机号码"),
+    db: AsyncSession = Depends(get_db),
+    tenant_id: str = Depends(get_current_tenant_optional)
+):
+    """通过手机号查询访客申请状态，无需登录"""
+    service = VisitorService(db)
+    visitors = await service.get_visitors_by_phone(phone_number, tenant_id or "default")
+    return visitors
+
+
+@router.post("/", response_model=VisitorResponseDTO, summary="创建访客（管理员）")
 async def create_visitor(
     visitor_data: VisitorCreateDTO,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
     tenant_id: str = Depends(get_current_tenant)
 ):
-    """创建新访客"""
+    """管理员创建访客"""
     service = VisitorService(db)
     return await service.create_visitor(visitor_data, current_user["sub"], tenant_id)
 
